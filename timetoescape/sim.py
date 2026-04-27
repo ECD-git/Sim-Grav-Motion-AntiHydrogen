@@ -15,21 +15,21 @@ def RandSpace(N):
 # MAXWELL BOLTZMAN VELOCITY DIST
 def MaxBoltCDF(vel, temp, PE):
     '''
-    
+    Maxwell boltzmann CDF for a velocity vel, temperature temp, potential energy PE.
     '''
     E = (0.5*MASS*(vel**2)) + PE
     return math.erf((E/(K_B*temp))**0.5) - (2/(np.pi**0.5)) * ((E/(K_B*temp))**0.5) * np.exp(-E/(K_B*temp))
 
 def MaxBoltPDF(vel,temp,PE):
     '''
-    
+    Maxwell boltzmann PDF for a velocity vel, temperature temp, potential energy PE.
     '''
     E = 0.5*MASS*(vel**2) + PE
     return ((2/np.pi)**0.5)*2*((MASS/(K_B*temp))**0.5)*(E/(K_B*temp))*np.exp(-E/(K_B*temp))
 
 def GetDistributedVelocity(prob, temp, PE, it=20, guess=0):
     '''
-    
+    Uses newton raphson iteration, it times, to get a velocity from a uniformly distributed variable prob, of temperature temp, potential energy PE.
     '''
     if(guess == 0):
         guess = ((2*K_B*temp)/MASS)**0.5
@@ -40,6 +40,9 @@ def GetDistributedVelocity(prob, temp, PE, it=20, guess=0):
     return guess
 
 def RandVelocities(N, temp, PE):
+    '''
+    Returns a numpy array of N maxwell boltzman distributed velocities
+    '''
     uniforms = np.random.rand(N)
     velocities = np.vectorize(GetDistributedVelocity)(uniforms, temp, PE)
     return velocities

@@ -2,13 +2,17 @@ import numpy as np
 import matplotlib.pyplot as plot
 import math
 
+# physical
 global MASS; MASS = 1.00784*1.66*(10**-27);
 global K_B; K_B = 1.380649*(10**-23);
+# simulation
 global NUMBER; NUMBER = 10000;
 global INITTEMP; INITEMP = 0.001;
 global INITPE; INITPE = 0;
-global TRAPSIGMA;
-global TRAPD;
+global TIMESTEP; TIMESTEP = 0.001; # make sure to design sim so timestep can be changed at a later date
+# trap
+global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
+global TRAPD; TRAPD = 5*0.01 #[m]
 
 # RANDOM GENERATORS
 def UniRandSpace(N):
@@ -69,11 +73,25 @@ def DrawInitVels(velocities):
     plot.legend()
     plot.show()
 
-# SIMULATION LOOP
+# PARTICLE PATHING
+
+def MFPPDF(x):
+    '''
+    Returns the PDF of the probability the particle has entered the beam after a transverse path x
+    Using mean free path theory, PDF(x) = 1-e^-(simga^2/d^2)x
+    '''
+    return 1-np.exp(-(TRAPSIGMA**2/TRAPD**2)*x)
+
+
+
 
 
 def __main__():    
+    # Initialise variables of simulation
     velocities = RandVelocities(NUMBER,INITEMP,INITPE)
+    paths = np.zeros(NUMBER)
+    time = 0
     #DrawInitVels(velocities)
+    
 
 __main__()

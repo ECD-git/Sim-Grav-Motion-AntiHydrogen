@@ -7,12 +7,22 @@ global K_B; K_B = 1.380649*(10**-23);
 global NUMBER; NUMBER = 10000;
 global INITTEMP; INITEMP = 0.001;
 global INITPE; INITPE = 0;
+global TRAPSIGMA;
+global TRAPD;
 
 # RANDOM GENERATORS
-def RandSpace(N):
+def UniRandSpace(N):
     return np.random.rand(N)
 
-# MAXWELL BOLTZMAN VELOCITY DIST
+def UniRandVector():
+    '''
+    Returns a numpy vector uniformly distributed on the surface of a unit sphere, in cartesian coords (x,y,z)
+    '''
+    theta = np.acos(1-2*np.random.uniform(0,1))
+    phi = np.random.uniform(0,2*np.pi)
+    return np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)])
+
+# MAXWELL BOLTZMAN VELOCITY DISTRIBUTION
 def MaxBoltCDF(vel, temp, PE):
     '''
     Maxwell boltzmann CDF for a velocity vel, temperature temp, potential energy PE.
@@ -58,7 +68,12 @@ def DrawInitVels(velocities):
     plot.ylabel('Density')
     plot.legend()
     plot.show()
-    
-velocities = RandVelocities(NUMBER,INITEMP,INITPE)
-DrawInitVels(velocities)
 
+# SIMULATION LOOP
+
+
+def __main__():    
+    velocities = RandVelocities(NUMBER,INITEMP,INITPE)
+    #DrawInitVels(velocities)
+
+__main__()

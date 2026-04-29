@@ -119,7 +119,9 @@ def GetDistributedn(prob, N, it=20, guess=0):
         guess = np.sqrt(N)
     for i in range(it):
         guess = guess - ((RandomWalkCDF(guess,N)-prob)/RandomWalkPDF(guess, N))
-    return guess
+    i = np.random.randint(-1,1)
+    if(i == 0): i = 1
+    return guess*i
 
 
 # sim
@@ -151,6 +153,12 @@ def simulate():
     nKicks = np.vectorize(GetDistributedn)(np.random.rand(np.size(crossingBeamIndex)), NKicks)
     # get a change in z-dir energy and therefor velocity for each particle
     deltaUZ = BEAMSTRENGTH * nKicks
+    deltaVZ = deltaUZ/(MASS*VELOCITIES*directions[:,2])
+    # Apply the change in velocity to effected particles
+    # this may be a little slow but works for no for recombining the ind of effect particles with the overall particle array
+    for i in range(np.size(crossingBeamIndex)):
+        ind = crossingBeamIndex[i]
+        VELOCITIES[ind] = np.sqrt((VELOCITIES[ind]*directions[i,0])**2 + (VELOCITIES[ind]*directions[i,1])**2 + ((VELOCITIES[ind]*directions[i,2]) + deltaVZ[i])**2)
     # reset the MFP of effected particles to 0
     FREEPATHS[crossingBeamIndex] = 0
     
@@ -164,6 +172,5 @@ def simulate():
 def __main__():    
     simulate()
     #DrawInitVels(velocities)
-    
 
 __main__()

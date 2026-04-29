@@ -26,6 +26,20 @@ def UniRandVector():
     phi = np.random.uniform(0,2*np.pi)
     return np.array([np.sin(theta)*np.cos(phi), np.sin(theta)*np.sin(phi), np.cos(theta)])
 
+def UniRandVectorSpace(N):
+    '''
+    Returns an NP array of uniform random unit vectors 
+    '''
+    angles = np.random.random((N,2))
+    angles[:,1] = angles[:,1]*2*np.pi # phi
+    angles[:,0] = np.acos(1-2*angles[:,0]) # theta
+
+    unitVectors = np.zeros((N,3))
+    unitVectors[:,0] = np.sin(angles[:,0])*np.cos(angles[:,1]) #x
+    unitVectors[:,1] = np.sin(angles[:,0])*np.sin(angles[:,1]) #y
+    unitVectors[:,2] = np.cos(angles[:,0]) #z
+    return unitVectors
+
 # MAXWELL BOLTZMAN VELOCITY DISTRIBUTION
 def MaxBoltCDF(vel, temp, PE):
     '''
@@ -82,15 +96,33 @@ def MFPPDF(x):
     '''
     return 1-np.exp(-(TRAPSIGMA**2/TRAPD**2)*x)
 
+# sim
+def simulate():
+    # Initialise variables of simulation
+    VELOCITIES = RandVelocities(NUMBER,INITEMP,INITPE)
+    FREEPATHS = np.zeros(NUMBER)
+    TIME = 0
 
+    # -- Main LOOP
+    # - move particles + redist vel
+    TIME += TIMESTEP # iterate by one step
+    directions = UniRandVectorSpace(np.size(VELOCITIES)) # get current direction of all particles
+    transComps = np.sqrt(directions[:,0]**2 + directions[:,1]**2) # get all transverse components
+    FREEPATHS += VELOCITIES*transComps*TIMESTEP # get the amount each particle travels by
+
+    # - check if a particle is crossing the beam
+    # ie if a random num (0,1] is less than the value of the PDF at that MFP, then its crossing the beam
+    crossingBeamIndex = np.where(UniRandSpace(len(FREEPATHS)) < np.vectorize(MFPPDF)(FREEPATHS))
+    # reset the MFP of effected particles to 0
+    
+
+    # REMOVE ANY ESCAPED PARTICLES
+    # Important to maintain that VELOCITIES and FREEPATHS are always the same lenght
 
 
 
 def __main__():    
-    # Initialise variables of simulation
-    velocities = RandVelocities(NUMBER,INITEMP,INITPE)
-    paths = np.zeros(NUMBER)
-    time = 0
+    simulate()
     #DrawInitVels(velocities)
     
 

@@ -8,9 +8,10 @@ global K_B; K_B = 1.380649*(10**-23);
 global C; C = 3*(10**8);
 global ALPHA_FACTOR; ALPHA_FACTOR=6.67*(10**-31) #[m^3], alpha/4*pi*epsilon_0
 # simulation
-global NUMBER; NUMBER = 10000;
-global INITTEMP; INITEMP = 0.001;
+global NUMBER; NUMBER = 2;
+global INITTEMP; INITEMP = 0.001; # 1milikelvin
 global INITPE; INITPE = 0;
+global THRESHOLD; THRESHOLD = 0.02; # 2 milikelvin
 global TIMESTEP; TIMESTEP = 0.001; # make sure to design sim so timestep can be changed at a later date
 # trap
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
@@ -102,14 +103,15 @@ def MFPPDF(x):
     Returns the PDF of the probability the particle has entered the beam after a transverse path x
     Using mean free path theory, PDF(x) = 1-e^-(simga^2/d^2)x
     '''
-    return 1-np.exp(-(TRAPSIGMA**2/TRAPD**2)*x)
+    #return 1-np.exp(-(TRAPSIGMA**2/TRAPD**2)*x)
+    return 1
 
 # RANDOM WALK STATISTICS
 def RandomWalkPDF(n,N):
-    return 1/(np.sqrt(2*np.pi*N)) * np.exp(-(n**2)/(2*N))
+    return (1/(np.sqrt(2*np.pi*N))) * (np.exp(-(n**2)/(2*N)))
 
 def RandomWalkCDF(n,N):
-    return math.erf(n/np.sqrt(2*N))
+    return 0.5*math.erf(n/np.sqrt(2*N))
 
 def GetDistributedn(prob, N, it=20, guess=0):
     '''
@@ -123,6 +125,13 @@ def GetDistributedn(prob, N, it=20, guess=0):
     if(i == 0): i = 1
     return guess*i
 
+# get energy
+def GetEnergyK(velocity, PE):
+    '''
+    returns a particles energy in kelvin
+    '''
+    return (0.5*MASS*(velocity**2) + PE)/K_B
+
 
 # sim
 def simulate():
@@ -130,42 +139,64 @@ def simulate():
     VELOCITIES = RandVelocities(NUMBER,INITEMP,INITPE)
     FREEPATHS = np.zeros(NUMBER)
     TIME = 0
+    escapeTimes = np.array([])
 
     # -- Main LOOP
-    # - move particles + redist vel
-    TIME += TIMESTEP # iterate by one step
-    directions, angles = UniRandVectorSpace(np.size(VELOCITIES)) # get current direction of all particles
-    transComps = np.sqrt(directions[:,0]**2 + directions[:,1]**2) # get all transverse components
-    FREEPATHS += VELOCITIES*transComps*TIMESTEP # get the amount each particle travels by
+    while(np.size(VELOCITIES)>0):
+        # - move particles + redist vel
+        TIME += TIMESTEP # iterate by one step
+        directions, angles = UniRandVectorSpace(np.size(VELOCITIES)) # get current direction of all particles
+        transComps = np.sqrt(directions[:,0]**2 + directions[:,1]**2) # get all transverse components
+        FREEPATHS += VELOCITIES*transComps*TIMESTEP # get the amount each particle travels by
 
-    # - check if a particle is crossing the beam
-    # ie if a random num (0,1] is less than the value of the PDF at that MFP, then its crossing the beam
-    crossingBeamIndex = np.where(UniRandSpace(np.size(FREEPATHS)) < np.vectorize(MFPPDF)(FREEPATHS))
-    # - If crossing beam
-    # get impact params
-    impactParams = TRAPSIGMA*UniRandSpace(np.size(VELOCITIES))
-    # get beam path
-    crossLengths = 2*np.sqrt(TRAPSIGMA**2-impactParams**2)
-    # get kick numbers
-    beamTimes = crossLengths/(VELOCITIES*transComps)
-    NKicks = beamTimes/(BEAMSWITCHPERIOD*(10**-9))
-    # get a number of non-cancelled kicks, randomly invert it for negative energy 
-    nKicks = np.vectorize(GetDistributedn)(np.random.rand(np.size(crossingBeamIndex)), NKicks)
-    # get a change in z-dir energy and therefor velocity for each particle
-    deltaUZ = BEAMSTRENGTH * nKicks
-    deltaVZ = deltaUZ/(MASS*VELOCITIES*directions[:,2])
-    # Apply the change in velocity to effected particles
-    # this may be a little slow but works for no for recombining the ind of effect particles with the overall particle array
-    for i in range(np.size(crossingBeamIndex)):
-        ind = crossingBeamIndex[i]
-        VELOCITIES[ind] = np.sqrt((VELOCITIES[ind]*directions[i,0])**2 + (VELOCITIES[ind]*directions[i,1])**2 + ((VELOCITIES[ind]*directions[i,2]) + deltaVZ[i])**2)
-    # reset the MFP of effected particles to 0
-    FREEPATHS[crossingBeamIndex] = 0
+        # - check if a particle is crossing the beam
+        # ie if a random num (0,1] is less than the value of the PDF at that MFP, then its crossing the beam
+        crossingBeamIndex = np.where(UniRandSpace(np.size(FREEPATHS)) < np.vectorize(MFPPDF)(FREEPATHS))[0]
+        # - If crossing beam
+        if(np.size(crossingBeamIndex)>0):
+            # get impact params
+            impactParams = TRAPSIGMA*UniRandSpace(np.size(VELOCITIES))
+            # get beam path
+            crossLengths = 2*np.sqrt(TRAPSIGMA**2-impactParams**2)
+            # get kick numbers
+            beamTimes = crossLengths/(VELOCITIES*transComps)
+            NKicks = beamTimes/(BEAMSWITCHPERIOD*(10**-9))
+            # get a number of non-cancelled kicks, randomly invert it for negative energy 
+            nKicks = np.vectorize(GetDistributedn)(np.random.uniform(0,0.5,size=np.size(crossingBeamIndex)), NKicks)
+            # get a change in z-dir energy and therefor velocity for each particle
+            deltaUZ = BEAMSTRENGTH * nKicks
+            deltaVZ = deltaUZ/(MASS*VELOCITIES*directions[:,2])
+            # Apply the change in velocity to effected particles
+            # this may be a little slow but works for no for recombining the ind of effect particles with the overall particle array
+            for i in range(np.size(crossingBeamIndex)):
+                ind = crossingBeamIndex[i]
+                VELOCITIES[ind] = np.sqrt((VELOCITIES[ind]*directions[i,0])**2 + (VELOCITIES[ind]*directions[i,1])**2 + ((VELOCITIES[ind]*directions[i,2]) + deltaVZ[i])**2)
+            # reset the MFP of effected particles to 0
+            FREEPATHS[crossingBeamIndex] = 0
+
+        #print(str(TIME) + ' ' + str(VELOCITIES) + ' ' + str(GetEnergyK(VELOCITIES[0],0)))
+        if(np.isnan(VELOCITIES[0])):
+            break;
+
+        # - REMOVE ANY ESCAPED PARTICLES
+        # Important to maintain that VELOCITIES and FREEPATHS are always the same lenght
+        # get particles energies in kelvin
+        energies = GetEnergyK(VELOCITIES, 0)
+        escaped = np.where(energies>THRESHOLD)
+        if(np.size(escaped)>0):
+            print("PARTICLES ESCAPED")
+            escapeTimes = np.append([TIME]*np.size(escaped), escapeTimes)
+            # remove escaped particles 
+            VELOCITIES = np.delete(VELOCITIES, escaped)
+            FREEPATHS = np.delete(FREEPATHS, escaped)
     
+    print(escapeTimes)
     
 
-    # REMOVE ANY ESCAPED PARTICLES
-    # Important to maintain that VELOCITIES and FREEPATHS are always the same lenght
+
+
+
+
 
 
 

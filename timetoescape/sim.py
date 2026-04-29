@@ -8,17 +8,17 @@ global K_B; K_B = 1.380649*(10**-23);
 global C; C = 3*(10**8);
 global ALPHA_FACTOR; ALPHA_FACTOR=6.67*(10**-31) #[m^3], alpha/4*pi*epsilon_0
 # simulation
-global NUMBER; NUMBER = 10;
-global INITTEMP; INITEMP = 0.001; # 1milikelvin
+global NUMBER; NUMBER = 1000;
+global INITTEMP; INITEMP = 0.001; # kelvin
 global INITPE; INITPE = 0;
-global THRESHOLD; THRESHOLD = 0.02; # 2 milikelvin
-global TIMESTEP; TIMESTEP = 0.001; # make sure to design sim so timestep can be changed at a later date
+global THRESHOLD; THRESHOLD = 0.002; # kelvin
+global TIMESTEP; TIMESTEP = 0.01; # make sure to design sim so timestep can be changed at a later date
 # trap
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
 global TRAPD; TRAPD = 5*0.01 #[m]
 global BEAMSWITCHPERIOD; BEAMSWITCHPERIOD = 1 #[ns]
 global BEAMLAMBDA; BEAMLAMBDA = 1200*(10**-9) # [m]
-global BEAMPOWER; BEAMPOWER = 1 #[W]
+global BEAMPOWER; BEAMPOWER = 2 #[W]
 
 # we are using the expectation value of the energy change per kick since there will be like 10**6 kicks per beam pass
 global BEAMSTRENGTH; BEAMSTRENGTH = ALPHA_FACTOR * ((2*BEAMPOWER)/(C*(TRAPSIGMA**2)))
@@ -103,8 +103,7 @@ def MFPPDF(x):
     Returns the PDF of the probability the particle has entered the beam after a transverse path x
     Using mean free path theory, PDF(x) = 1-e^-(simga^2/d^2)x
     '''
-    #return 1-np.exp(-(TRAPSIGMA**2/TRAPD**2)*x)
-    return 1
+    return 1-np.exp(-(TRAPSIGMA**2/TRAPD**2)*x)
 
 # RANDOM WALK STATISTICS
 def RandomWalkPDF(n,N):
@@ -151,21 +150,21 @@ def simulate():
 
         # - check if a particle is crossing the beam
         # ie if a random num (0,1] is less than the value of the PDF at that MFP, then its crossing the beam
-        crossingBeamIndex = np.where(UniRandSpace(np.size(FREEPATHS)) < np.vectorize(MFPPDF)(FREEPATHS))[0]
+        crossingBeamIndex = np.where(UniRandSpace(np.size(FREEPATHS)) <= np.vectorize(MFPPDF)(FREEPATHS))[0]
         # - If crossing beam
         if(np.size(crossingBeamIndex)>0):
             # get impact params
-            impactParams = TRAPSIGMA*UniRandSpace(np.size(VELOCITIES))
+            impactParams = TRAPSIGMA*UniRandSpace(np.size(crossingBeamIndex))
             # get beam path
             crossLengths = 2*np.sqrt(TRAPSIGMA**2-impactParams**2)
             # get kick numbers
-            beamTimes = crossLengths/(VELOCITIES*transComps)
+            beamTimes = crossLengths/(VELOCITIES[crossingBeamIndex]*transComps[crossingBeamIndex])
             NKicks = beamTimes/(BEAMSWITCHPERIOD*(10**-9))
             # get a number of non-cancelled kicks, randomly invert it for negative energy 
             nKicks = np.vectorize(GetDistributedn)(np.random.uniform(0,0.5,size=np.size(crossingBeamIndex)), NKicks)
             # get a change in z-dir energy and therefor velocity for each particle
             deltaUZ = BEAMSTRENGTH * nKicks
-            deltaVZ = deltaUZ/(MASS*VELOCITIES*directions[:,2])
+            deltaVZ = deltaUZ/(MASS*VELOCITIES[crossingBeamIndex]*directions[crossingBeamIndex,2])
             # Apply the change in velocity to effected particles
             # this may be a little slow but works for no for recombining the ind of effect particles with the overall particle array
             for i in range(np.size(crossingBeamIndex)):
@@ -182,20 +181,21 @@ def simulate():
         # Important to maintain that VELOCITIES and FREEPATHS are always the same lenght
         # get particles energies in kelvin
         energies = GetEnergyK(VELOCITIES, 0)
-        escaped = np.where(energies>THRESHOLD)
+        escaped = np.where(energies>THRESHOLD)[0]
         if(np.size(escaped)>0):
-            print("PARTICLES ESCAPED")
+            print(escaped)
             escapeTimes = np.append([TIME]*np.size(escaped), escapeTimes)
             # remove escaped particles 
             VELOCITIES = np.delete(VELOCITIES, escaped)
             FREEPATHS = np.delete(FREEPATHS, escaped)
+            print("{0} PARTICLES ESCAPED, {1} REMAIN".format(np.size(escaped), np.size(VELOCITIES)))
 
     return escapeTimes
 
 def Histogram(array):
     Fig = plot.figure()
     plot.hist(array, bins=200, density=True, alpha=0.5, color='blue')
-    plot.title("Escape Times, {0} Particles, $\delta t$ = {1}, {2}K -> {3}K".format(NUMBER, TIMESTEP, INITEMP, THRESHOLD+INITEMP))
+    plot.title("Escape Times, {0} Particles, $\delta t$ = {1}, {2}K -> {3}K".format(NUMBER, TIMESTEP, INITEMP, THRESHOLD))
     plot.xlabel('Escape Time /s')
     plot.ylabel('Density')
     plot.legend()

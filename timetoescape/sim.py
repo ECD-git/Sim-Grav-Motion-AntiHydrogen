@@ -5,6 +5,8 @@ import math
 # physical
 global MASS; MASS = 1.00784*1.66*(10**-27);
 global K_B; K_B = 1.380649*(10**-23);
+global C; C = 3*(10**8);
+global ALPHA_FACTOR; ALPHA_FACTOR=6.67*(10**-31) #[m^3], alpha/4*pi*epsilon_0
 # simulation
 global NUMBER; NUMBER = 10000;
 global INITTEMP; INITEMP = 0.001;
@@ -14,6 +16,11 @@ global TIMESTEP; TIMESTEP = 0.001; # make sure to design sim so timestep can be 
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
 global TRAPD; TRAPD = 5*0.01 #[m]
 global BEAMSWITCHPERIOD; BEAMSWITCHPERIOD = 1 #[ns]
+global BEAMLAMBDA; BEAMLAMBDA = 1200*(10**-9) # [m]
+global BEAMPOWER; BEAMPOWER = 1 #[W]
+
+# we are using the expectation value of the energy change per kick since there will be like 10**6 kicks per beam pass
+global BEAMSTRENGTH; BEAMSTRENGTH = ALPHA_FACTOR * ((2*BEAMPOWER)/(C*(TRAPSIGMA**2)))
 
 # RANDOM GENERATORS
 def UniRandSpace(N):
@@ -97,6 +104,24 @@ def MFPPDF(x):
     '''
     return 1-np.exp(-(TRAPSIGMA**2/TRAPD**2)*x)
 
+# RANDOM WALK STATISTICS
+def RandomWalkPDF(n,N):
+    return 1/(np.sqrt(2*np.pi*N)) * np.exp(-(n**2)/(2*N))
+
+def RandomWalkCDF(n,N):
+    return math.erf(n/np.sqrt(2*N))
+
+def GetDistributedn(prob, N, it=20, guess=0):
+    '''
+    Uses newton raphson iteration, it times, to get a random walk n from a dist of size N
+    '''
+    if(guess == 0):
+        guess = np.sqrt(N)
+    for i in range(it):
+        guess = guess - ((RandomWalkCDF(guess,N)-prob)/RandomWalkPDF(guess, N))
+    return guess
+
+
 # sim
 def simulate():
     # Initialise variables of simulation
@@ -113,16 +138,19 @@ def simulate():
 
     # - check if a particle is crossing the beam
     # ie if a random num (0,1] is less than the value of the PDF at that MFP, then its crossing the beam
-    crossingBeamIndex = np.where(UniRandSpace(len(FREEPATHS)) < np.vectorize(MFPPDF)(FREEPATHS))
+    crossingBeamIndex = np.where(UniRandSpace(np.size(FREEPATHS)) < np.vectorize(MFPPDF)(FREEPATHS))
     # - If crossing beam
     # get impact params
-    impactParams = TRAPSIGMA*np.sin(angles[:,1]) 
+    impactParams = TRAPSIGMA*UniRandSpace(np.size(VELOCITIES))
     # get beam path
     crossLengths = 2*np.sqrt(TRAPSIGMA**2-impactParams**2)
     # get kick numbers
     beamTimes = crossLengths/(VELOCITIES*transComps)
-    nKicks = beamTimes/(BEAMSWITCHPERIOD*(10**-9))
-
+    NKicks = beamTimes/(BEAMSWITCHPERIOD*(10**-9))
+    # get a number of non-cancelled kicks, randomly invert it for negative energy 
+    nKicks = np.vectorize(GetDistributedn)(np.random.rand(np.size(crossingBeamIndex)), NKicks)
+    # get a change in z-dir energy and therefor velocity for each particle
+    deltaUZ = BEAMSTRENGTH * nKicks
     # reset the MFP of effected particles to 0
     FREEPATHS[crossingBeamIndex] = 0
     
@@ -134,8 +162,7 @@ def simulate():
 
 
 def __main__():    
-    np.atan(1/0)
-    #simulate()
+    simulate()
     #DrawInitVels(velocities)
     
 

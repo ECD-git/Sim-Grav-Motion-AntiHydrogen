@@ -8,7 +8,7 @@ global K_B; K_B = 1.380649*(10**-23);
 global C; C = 3*(10**8);
 global ALPHA_FACTOR; ALPHA_FACTOR=6.67*(10**-31) #[m^3], alpha/4*pi*epsilon_0
 # simulation
-global NUMBER; NUMBER = 2;
+global NUMBER; NUMBER = 10;
 global INITTEMP; INITEMP = 0.001; # 1milikelvin
 global INITPE; INITPE = 0;
 global THRESHOLD; THRESHOLD = 0.02; # 2 milikelvin
@@ -189,19 +189,20 @@ def simulate():
             # remove escaped particles 
             VELOCITIES = np.delete(VELOCITIES, escaped)
             FREEPATHS = np.delete(FREEPATHS, escaped)
+
+    return escapeTimes
+
+def Histogram(array):
+    Fig = plot.figure()
+    plot.hist(array, bins=200, density=True, alpha=0.5, color='blue')
+    plot.title("Escape Times, {0} Particles, $\delta t$ = {1}, {2}K -> {3}K".format(NUMBER, TIMESTEP, INITEMP, THRESHOLD+INITEMP))
+    plot.xlabel('Escape Time /s')
+    plot.ylabel('Density')
+    plot.legend()
+    plot.show()
     
-    print(escapeTimes)
-    
-
-
-
-
-
-
-
-
 def __main__():    
-    simulate()
-    #DrawInitVels(velocities)
+    times = simulate()
+    Histogram(times)
 
 __main__()

@@ -13,6 +13,7 @@ global TIMESTEP; TIMESTEP = 0.001; # make sure to design sim so timestep can be 
 # trap
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
 global TRAPD; TRAPD = 5*0.01 #[m]
+global BEAMSWITCHPERIOD; BEAMSWITCHPERIOD = 1 #[ns]
 
 # RANDOM GENERATORS
 def UniRandSpace(N):
@@ -38,7 +39,7 @@ def UniRandVectorSpace(N):
     unitVectors[:,0] = np.sin(angles[:,0])*np.cos(angles[:,1]) #x
     unitVectors[:,1] = np.sin(angles[:,0])*np.sin(angles[:,1]) #y
     unitVectors[:,2] = np.cos(angles[:,0]) #z
-    return unitVectors
+    return unitVectors, angles
 
 # MAXWELL BOLTZMAN VELOCITY DISTRIBUTION
 def MaxBoltCDF(vel, temp, PE):
@@ -106,14 +107,25 @@ def simulate():
     # -- Main LOOP
     # - move particles + redist vel
     TIME += TIMESTEP # iterate by one step
-    directions = UniRandVectorSpace(np.size(VELOCITIES)) # get current direction of all particles
+    directions, angles = UniRandVectorSpace(np.size(VELOCITIES)) # get current direction of all particles
     transComps = np.sqrt(directions[:,0]**2 + directions[:,1]**2) # get all transverse components
     FREEPATHS += VELOCITIES*transComps*TIMESTEP # get the amount each particle travels by
 
     # - check if a particle is crossing the beam
     # ie if a random num (0,1] is less than the value of the PDF at that MFP, then its crossing the beam
     crossingBeamIndex = np.where(UniRandSpace(len(FREEPATHS)) < np.vectorize(MFPPDF)(FREEPATHS))
+    # - If crossing beam
+    # get impact params
+    impactParams = TRAPSIGMA*np.sin(angles[:,1]) 
+    # get beam path
+    crossLengths = 2*np.sqrt(TRAPSIGMA**2-impactParams**2)
+    # get kick numbers
+    beamTimes = crossLengths/(VELOCITIES*transComps)
+    nKicks = beamTimes/(BEAMSWITCHPERIOD*(10**-9))
+
     # reset the MFP of effected particles to 0
+    FREEPATHS[crossingBeamIndex] = 0
+    
     
 
     # REMOVE ANY ESCAPED PARTICLES
@@ -122,7 +134,8 @@ def simulate():
 
 
 def __main__():    
-    simulate()
+    np.atan(1/0)
+    #simulate()
     #DrawInitVels(velocities)
     
 

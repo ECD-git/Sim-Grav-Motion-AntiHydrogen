@@ -11,9 +11,9 @@ global ALPHA_FACTOR; ALPHA_FACTOR=6.67*(10**-31) #[m^3], alpha/4*pi*epsilon_0
 global NUMBER; NUMBER = 1000;
 global INITTEMP; INITEMP = 0.001; # kelvin
 global INITPE; INITPE = 0;
-global THRESHOLD; THRESHOLD = 0.002; # kelvin
+global THRESHOLD; THRESHOLD = 0.2; # kelvin
 global TIMESTEP; TIMESTEP = 0.01; # make sure to design sim so timestep can be changed at a later date
-global MAXPASSES; MAXPASSES = 10;
+global MAXPASSES; MAXPASSES = 10000;
 
 # trap
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
@@ -207,7 +207,7 @@ def simulate2():
     TIMES = np.zeros(NUMBER)
     PASSES = np.zeros(NUMBER)
     KICKS = np.zeros(NUMBER)
-    escapes = np.array([])
+    escapes = np.array([np.array([]), np.array([]), np.array([])])
 
     while(np.size(VELOCITIES)>0 and np.max(PASSES) < MAXPASSES):
         # distribute velocity components
@@ -233,7 +233,7 @@ def simulate2():
         VELOCITIES = np.sqrt((VELOCITIES*directions[:,0])**2 + (VELOCITIES*directions[:,1])**2 + ((VELOCITIES*directions[:,2]) + deltaVZs)**2)
         
         # break and return an error if any velocities are nan
-        if(np.isnan(VELOCITIES)):
+        if(np.any(np.isnan(VELOCITIES))):
             print("NAN ENCOUNTERED IN VELOCITIES, BREAKING")
             break;
 
@@ -246,7 +246,7 @@ def simulate2():
         escaped = np.where(energies>THRESHOLD)[0]
         if(np.size(escaped)>0):
             # create an array of all escape times, total passes and total number of non cancelled kicks for all escaped particles
-            escapes = np.append(np.array([TIMES[escaped],PASSES[escaped],KICKS[escaped]]), escapes)
+            escapes = np.hstack((np.array([TIMES[escaped],PASSES[escaped],KICKS[escaped]]), escapes))
             # remove escaped particles 
             VELOCITIES = np.delete(VELOCITIES, escaped)
             PASSES = np.delete(PASSES, escaped)
@@ -255,7 +255,7 @@ def simulate2():
             print("{0} PARTICLES ESCAPED, {1} REMAIN".format(np.size(escaped), np.size(VELOCITIES)))
     # After loop ends, its assumed all remaining particles will not escape in any capacity we care about
     stucks = np.array([TIMES, VELOCITIES, PASSES, KICKS])
-    return escaped, stucks
+    return escapes, stucks
         
 def Histogram(array):
     Fig = plot.figure()
@@ -267,7 +267,11 @@ def Histogram(array):
     plot.show()
     
 def __main__():    
-    times = simulate()
-    Histogram(times)
+    times, bin = simulate2()
+    Histogram(times[0])
+
+    #A = np.array([np.array([1,1]), np.array([2,2]),])
+    #B = np.array([np.array([3,3]), np.array([4,4]),])
+    #print(np.hstack((A,B)))
 
 __main__()

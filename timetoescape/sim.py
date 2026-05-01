@@ -12,8 +12,9 @@ global NUMBER; NUMBER = 1000;
 global INITTEMP; INITEMP = 0.001; # kelvin
 global INITPE; INITPE = 0;
 global THRESHOLD; THRESHOLD = 0.2; # kelvin
-global TIMESTEP; TIMESTEP = 0.01; # make sure to design sim so timestep can be changed at a later date
+global TIMESTEP; TIMESTEP = 0.05; # make sure to design sim so timestep can be changed at a later date
 global MAXPASSES; MAXPASSES = 10000;
+global MAXTIME; MAXTIME = 10000; # 10000 sim seconds
 
 # trap
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
@@ -208,6 +209,7 @@ def simulate2():
     PASSES = np.zeros(NUMBER)
     KICKS = np.zeros(NUMBER)
     escapes = np.array([np.array([]), np.array([]), np.array([])])
+    stucks = np.array([np.array([]), np.array([]), np.array([]), np.array([])])
 
     while(np.size(VELOCITIES)>0 and np.max(PASSES) < MAXPASSES):
         # distribute velocity components
@@ -241,9 +243,10 @@ def simulate2():
         PASSES += np.array([1]*np.size(PASSES))
         KICKS += nKicks
 
-        # CHECK FOR ESCAPES
+        # CHECK FOR ESCAPES OR OVER TIMES
         energies = GetEnergyK(VELOCITIES, 0)
         escaped = np.where(energies>THRESHOLD)[0]
+        stuck = np.where(TIMES>MAXTIME)[0]
         if(np.size(escaped)>0):
             # create an array of all escape times, total passes and total number of non cancelled kicks for all escaped particles
             escapes = np.hstack((np.array([TIMES[escaped],PASSES[escaped],KICKS[escaped]]), escapes))
@@ -253,8 +256,19 @@ def simulate2():
             KICKS = np.delete(KICKS, escaped)
             TIMES = np.delete(TIMES, escaped)
             print("{0} PARTICLES ESCAPED, {1} REMAIN".format(np.size(escaped), np.size(VELOCITIES)))
+        if(np.size(stuck) > 0):
+            # get vel and other profiles of stuck particles
+            stucks = np.hstack((np.array([TIMES[stuck],VELOCITIES[stuck],PASSES[stuck],KICKS[stuck]]), stucks))
+            VELOCITIES = np.delete(VELOCITIES, stuck)
+            PASSES = np.delete(PASSES, stuck)
+            KICKS = np.delete(KICKS, stuck)
+            TIMES = np.delete(TIMES, stuck)
+            print("{0} PARTICLES TIMEDOUT, {1} REMAIN".format(np.size(stuck), np.size(VELOCITIES)))
+
     # After loop ends, its assumed all remaining particles will not escape in any capacity we care about
-    stucks = np.array([TIMES, VELOCITIES, PASSES, KICKS])
+    print("MAX LOOPS EXCEEDED, {0} REMAINING PARTICLES TIMED OUT".format(np.size(VELOCITIES)))
+    stucks = np.hstack((np.array([TIMES,VELOCITIES,PASSES,KICKS]), stucks))
+    print("{0} PARTICLES ESCAPED, {1} STILL TRAPPED".format(np.size(escapes[0]),np.size(stucks[0])))
     return escapes, stucks
         
 def Histogram(array):
@@ -269,9 +283,5 @@ def Histogram(array):
 def __main__():    
     times, bin = simulate2()
     Histogram(times[0])
-
-    #A = np.array([np.array([1,1]), np.array([2,2]),])
-    #B = np.array([np.array([3,3]), np.array([4,4]),])
-    #print(np.hstack((A,B)))
 
 __main__()

@@ -13,12 +13,14 @@ global INITTEMP; INITEMP = 0.001; # kelvin
 global INITPE; INITPE = 0;
 global THRESHOLD; THRESHOLD = 0.002; # kelvin
 global TIMESTEP; TIMESTEP = 0.01; # make sure to design sim so timestep can be changed at a later date
+global MAXPASSES; MAXPASSES = 10;
+
 # trap
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
 global TRAPD; TRAPD = 5*0.01 #[m]
-global BEAMSWITCHPERIOD; BEAMSWITCHPERIOD = 1 #[ns]
+global BEAMSWITCHPERIOD; BEAMSWITCHPERIOD = 1*(10**-9) #[s]
 global BEAMLAMBDA; BEAMLAMBDA = 1200*(10**-9) # [m]
-global BEAMPOWER; BEAMPOWER = 2 #[W]
+global BEAMPOWER; BEAMPOWER = 1 #[W]
 
 # we are using the expectation value of the energy change per kick since there will be like 10**6 kicks per beam pass
 global BEAMSTRENGTH; BEAMSTRENGTH = ALPHA_FACTOR * ((2*BEAMPOWER)/(C*(TRAPSIGMA**2)))
@@ -103,7 +105,15 @@ def MFPPDF(x):
     Returns the PDF of the probability the particle has entered the beam after a transverse path x
     Using mean free path theory, PDF(x) = 1-e^-(simga^2/d^2)x
     '''
-    return 1-np.exp(-(TRAPSIGMA**2/TRAPD**2)*x)
+    meanFreePath = (np.pi*(TRAPD**2))/(2*TRAPSIGMA)
+    return 1-np.exp(-x/meanFreePath)
+
+def RandomMFPTime(vel_t):
+    '''
+    Gets a randomly distributed time until next beam pass following a MFP distribution
+    '''
+    meanFreePath = (np.pi*(TRAPD**2))/(2*TRAPSIGMA)
+    return -(meanFreePath/vel_t)*np.log(1-np.random.random_sample())
 
 # RANDOM WALK STATISTICS
 def RandomWalkPDF(n,N):
@@ -183,7 +193,6 @@ def simulate():
         energies = GetEnergyK(VELOCITIES, 0)
         escaped = np.where(energies>THRESHOLD)[0]
         if(np.size(escaped)>0):
-            print(escaped)
             escapeTimes = np.append([TIME]*np.size(escaped), escapeTimes)
             # remove escaped particles 
             VELOCITIES = np.delete(VELOCITIES, escaped)
@@ -192,6 +201,62 @@ def simulate():
 
     return escapeTimes
 
+def simulate2():
+    # Initialise variables of simulation
+    VELOCITIES = RandVelocities(NUMBER,INITEMP,INITPE)
+    TIMES = np.zeros(NUMBER)
+    PASSES = np.zeros(NUMBER)
+    KICKS = np.zeros(NUMBER)
+    escapes = np.array([])
+
+    while(np.size(VELOCITIES)>0 and np.max(PASSES) < MAXPASSES):
+        # distribute velocity components
+        directions, angles = UniRandVectorSpace(np.size(VELOCITIES)) # get current direction of all particles
+        transComps = np.sqrt(directions[:,0]**2 + directions[:,1]**2) # get all transverse components
+        # Get time until next beam pass
+        TIMES += np.vectorize(RandomMFPTime)(VELOCITIES*transComps)
+
+        # For particles crossing beam (all of ones remaining lmao)
+        # Impact params
+        impactParams = TRAPSIGMA*UniRandSpace(np.size(VELOCITIES))
+        # get beam path
+        crossLengths = 2*np.sqrt(TRAPSIGMA**2-impactParams**2)
+        # get crossing time and therefore total number of kicks
+        beamTimes = crossLengths/(VELOCITIES*transComps)
+        NKicks = beamTimes/(BEAMSWITCHPERIOD)
+        # get a number of non-cancelled kicks, randomly invert it for negative energy (coin flip)
+        nKicks = np.vectorize(GetDistributedn)(np.random.uniform(0,0.5,size=np.size(VELOCITIES)), NKicks)
+        # get a change in z-dir energy and therefor velocity for each particle
+        deltaUZs = BEAMSTRENGTH * nKicks
+        deltaVZs = deltaUZs/(MASS*VELOCITIES*directions[:,2])
+        # apply increase in velocity
+        VELOCITIES = np.sqrt((VELOCITIES*directions[:,0])**2 + (VELOCITIES*directions[:,1])**2 + ((VELOCITIES*directions[:,2]) + deltaVZs)**2)
+        
+        # break and return an error if any velocities are nan
+        if(np.isnan(VELOCITIES)):
+            print("NAN ENCOUNTERED IN VELOCITIES, BREAKING")
+            break;
+
+        # ITERATE TRACKING ARRAYS
+        PASSES += np.array([1]*np.size(PASSES))
+        KICKS += nKicks
+
+        # CHECK FOR ESCAPES
+        energies = GetEnergyK(VELOCITIES, 0)
+        escaped = np.where(energies>THRESHOLD)[0]
+        if(np.size(escaped)>0):
+            # create an array of all escape times, total passes and total number of non cancelled kicks for all escaped particles
+            escapes = np.append(np.array([TIMES[escaped],PASSES[escaped],KICKS[escaped]]), escapes)
+            # remove escaped particles 
+            VELOCITIES = np.delete(VELOCITIES, escaped)
+            PASSES = np.delete(PASSES, escaped)
+            KICKS = np.delete(KICKS, escaped)
+            TIMES = np.delete(TIMES, escaped)
+            print("{0} PARTICLES ESCAPED, {1} REMAIN".format(np.size(escaped), np.size(VELOCITIES)))
+    # After loop ends, its assumed all remaining particles will not escape in any capacity we care about
+    stucks = np.array([TIMES, VELOCITIES, PASSES, KICKS])
+    return escaped, stucks
+        
 def Histogram(array):
     Fig = plot.figure()
     plot.hist(array, bins=200, density=True, alpha=0.5, color='blue')

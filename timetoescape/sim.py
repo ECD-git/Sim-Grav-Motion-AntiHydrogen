@@ -16,6 +16,7 @@ global TIMESTEP; TIMESTEP = 0.05; # make sure to design sim so timestep can be c
 global MAXPASSES; MAXPASSES = 10000;
 global MAXTIME; MAXTIME = 10000; # 10000 sim seconds
 global MINESCAPES; MINESCAPES = 100; # min number of escapes to occur before sim starts timing out particles
+global SNAPSHOTTIMES; SNAPSHOTTIMES = [1000,2000,3000,4000,5000,6000,7000,8000,9000,10000] # take dist at some interesting times
 
 # trap
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
@@ -280,7 +281,7 @@ def simulate2():
         
 def Histogram(array):
     Fig = plot.figure()
-    plot.hist(array, density=True, alpha=0.5, color='blue')
+    plot.hist(array, bins=200, density=True, alpha=0.5, color='blue')
     plot.title(r"Escape Times, {0} Particles, $\delta t$ = {1}, {2}K -> {3}K".format(NUMBER, TIMESTEP, INITEMP, THRESHOLD))
     plot.xlabel('Escape Time /s')
     plot.ylabel('Density')

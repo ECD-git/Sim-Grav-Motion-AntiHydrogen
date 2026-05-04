@@ -272,8 +272,8 @@ def simulate2(snapshots = False):
             # broadcast the snapshot times vertically to a matrix of length equal to TIMES
             checkTimesMatrix = np.tile(np.reshape(SNAPSHOTTIMES, (np.size(SNAPSHOTTIMES,axis=0),1)),(1, np.size(TIMES,axis=0)))
             # broadcast TIMES, TIMES+deltaT horizontally to the length of snapshottimes,
-            # check if a snapshot time lies between the 2 values, and get their ind
-            indSnapshot = (np.tile(TIMES,(np.size(checkTimesMatrix, axis=0),1))<checkTimesMatrix) * (checkTimesMatrix<=np.tile(TIMES+deltaT,(np.size(checkTimesMatrix, axis=0),1)))
+            # check if a snapshot time lies between the 2 values, and get their ind (atp TIMES has been iterated so must look to previous value)
+            indSnapshot = (np.tile(TIMES-deltaT,(np.size(checkTimesMatrix, axis=0),1))<checkTimesMatrix) * (checkTimesMatrix<=np.tile(TIMES,(np.size(checkTimesMatrix, axis=0),1)))
             indSnapshot = np.where(indSnapshot)
 
             # get a snapshot of data if at a relevant time
@@ -375,9 +375,12 @@ def HistSnapShot(filename, timeIndex=0):
             dat[i][j] = literal_eval(dat[i][j])
     velocities = [x[0] for x in dat[timeIndex]]
 
+    for i in range(len(dat)):
+        print(len(dat[i]))
+
     Fig = plot.figure()
     plot.hist(velocities, bins=200, density=True, alpha=0.5, color='blue')
-    plot.title(r"Velocities, {0} Particles at t={1}s, {2}K -> {3}K".format(NUMBER, time, INITEMP, THRESHOLD, len(dat[1])))
+    plot.title(r"Velocities, {0} Initial Particles, {4} remain at t={1}s, {2}K -> {3}K".format(NUMBER, time, INITEMP, THRESHOLD, len(velocities)))
     plot.xlabel('Vel /ms^-1')
     plot.ylabel('Density')
     plot.show()
@@ -400,7 +403,7 @@ def __main__():
 
     print("CSV file written successfully.")
 
-#__main__()
+__main__()
 #HistEscapeTimes("lastrunTimes.csv")
 #HistVelDistStucks("lastrunStucks.csv")
 HistSnapShot("lastrunSnapshot.csv", timeIndex=0)

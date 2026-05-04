@@ -16,7 +16,7 @@ global TIMESTEP; TIMESTEP = 0.05; # make sure to design sim so timestep can be c
 global MAXPASSES; MAXPASSES = 10000;
 global MAXTIME; MAXTIME = 10000; # 10000 sim seconds
 global MINESCAPES; MINESCAPES = 100; # min number of escapes to occur before sim starts timing out particles
-global SNAPSHOTTIMES; SNAPSHOTTIMES = np.array([1000,2000,3000,4000,5000,6000,7000,8000,9000,10000]) # take dist at some interesting times
+global SNAPSHOTTIMES; SNAPSHOTTIMES = np.array([1000,2000,3000,4000,5000,6000,7000,8000,9000,10000]) # take dist at some interesting times, im not sure how this behaves at >MAXTIME since its uneeded
 
 # trap
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
@@ -321,46 +321,7 @@ def Histogram(array):
 
 def __main__():    
     times, stucks, snapshotdata = simulate2(snapshots=True)
-    
+
     Histogram(times[0])
-
-    '''
-    snapshottimes = np.array([2,5,8])
-    # empty array to store n kicks, passes and velocities, for each snapshot time, simply append each new particle to its relevant time slot (row)
-    # REMEMBER TO REMOVE THE FIRST ELEMENT FROM EACH ROW AT END
-    # this is for 2 data points but would be extended to 3 for the actual
-    snapshotdata = [[[0,0]] for _ in range(np.size(snapshottimes))]
-    print(snapshotdata)
-
-    A = np.array([1,1,4,4,1,1,4,7,7])
-    dat1 = np.array([1,1,1,1,1,1,1,1,1])
-    dat2 = np.array([2,2,2,2,2,2,2,2,2])
-
-    deltaT = np.array([2,2,2,2,2,2,2,2,2])
-    Times = np.tile(np.reshape(snapshottimes, (np.size(snapshottimes,axis=0),1)), (1,np.size(A, axis=0)))
-
-    snapshot = (np.tile(A,(np.size(Times, axis=0),1))<Times) * (Times<=np.tile(A+deltaT,(np.size(Times, axis=0),1)))
-    snapshot = np.where(snapshot)
-    print(snapshot)
-
-    # get data after energy changes and escapes etc, but before timeouts
-    A += deltaT
-    
-
-
-    #------
-    # append data points
-    for i in snapshot[0]:
-        # i is the row index in snapshotdata
-        # snapshot[1][i] is the index of the data elementx
-        snapshotdata[i].append([dat1[snapshot[1][i]],dat2[snapshot[1][i]]])
-
-    # at end, remove first element from each row to remove placeholders
-    for i in range(len(snapshotdata)):
-        snapshotdata[i].pop(0)
-
-    for row in snapshotdata:
-        print(row)
-    '''
 
 __main__()

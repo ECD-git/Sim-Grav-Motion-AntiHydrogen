@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plot
 import math
+import csv
 
 # physical
 global MASS; MASS = 1.00784*1.66*(10**-27);
@@ -319,9 +320,62 @@ def Histogram(array):
     plot.ylabel('Density')
     plot.show()
 
+def ReadFile(filename):
+    dat = []
+    with open(filename, "r", newline="", encoding="utf-8") as f:
+        raw = csv.reader(f)
+        # eg dat[0] = escape times
+        # dat[1] = num beam passes of escaped particles
+        # dat[2] = total num of non cancelled kicks for escaping particles
+
+        # [0] = Times
+        # [1] = Vel of stuck particles
+        # [2] = passes
+        # [3] = kicks
+        for row in raw:
+            dat.append(row)
+    # csv reads as strings so need to convert back to floats
+    for i in range(len(dat)):
+        dat[i] = list(map(float, dat[i]))
+    return dat
+
+def HistEscapeTimes(filename):
+    dat = ReadFile(filename)
+    Fig = plot.figure()
+    plot.hist(dat[0], bins=200, density=True, alpha=0.5, color='blue')
+    plot.title(r"Escape Times, {0} Particles, $\delta t$ = {1}, {2}K -> {3}K".format(NUMBER, TIMESTEP, INITEMP, THRESHOLD))
+    plot.xlabel('Escape Time /s')
+    plot.ylabel('Density')
+    plot.show()
+
+def HistVelDistStucks(filename):
+    dat = ReadFile(filename)
+    Fig = plot.figure()
+    plot.hist(dat[1], bins=200, density=True, alpha=0.5, color='blue')
+    plot.title(r"Velocities, Stuck Particles, {0} Particles {4} Stuck, $\delta t$ = {1}, {2}K -> {3}K".format(NUMBER, TIMESTEP, INITEMP, THRESHOLD, len(dat[1])))
+    plot.xlabel('Vel /ms^-1')
+    plot.ylabel('Density')
+    plot.show()
+    
+
 def __main__():    
-    times, stucks, snapshotdata = simulate2(snapshots=True)
+    escapes, stucks, snapshotdata = simulate2(snapshots=True)
 
-    Histogram(times[0])
+    # this completely overwrites previous file data, so for consecutive runs the data should be combined into a 'master array' before being written
+    with open("lastrunTimes.csv", "w", newline="", encoding="utf-8") as fe:
+        writer = csv.writer(fe)
+        writer.writerows(escapes)
 
-__main__()
+    with open("lastrunStucks.csv", "w", newline="", encoding="utf-8") as fs:
+        writer = csv.writer(fs)
+        writer.writerows(stucks)
+
+    with open("lastrunSnapshot.csv", "w", newline="", encoding="utf-8") as fss:
+        writer = csv.writer(fss)
+        writer.writerows(snapshotdata)
+
+    print("CSV file written successfully.")
+
+#__main__()
+#HistEscapeTimes("lastrunTimes.csv")
+HistVelDistStucks("lastrunStucks.csv")

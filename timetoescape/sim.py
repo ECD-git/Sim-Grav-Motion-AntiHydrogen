@@ -352,7 +352,7 @@ def HistEscapeTimes(filename):
     dat = ReadFile(filename)
     Fig = plot.figure()
     plot.hist(dat[0], bins=200, density=True, alpha=0.5, color='blue')
-    plot.title(r"Escape Times, {0} Particles {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD))
+    plot.title(r"Escape Times, {0} Particles, {3} Escaped {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[0])))
     plot.xlabel('Escape Time /s')
     plot.ylabel('Density')
     plot.show()
@@ -374,14 +374,15 @@ def HistSnapShot(filename, timeIndex=0):
         for j in range(len(dat[i])):
             dat[i][j] = literal_eval(dat[i][j])
     velocities = [x[0] for x in dat[timeIndex]]
+    nkicks = [x[2] for x in dat[timeIndex]]
 
     for i in range(len(dat)):
         print(len(dat[i]))
 
     Fig = plot.figure()
-    plot.hist(velocities, bins=200, density=True, alpha=0.5, color='blue')
-    plot.title(r"Velocities, {0} Initial Particles, {4} remain at t={1}s, {2}K -> {3}K".format(NUMBER, time, INITEMP, THRESHOLD, len(velocities)))
-    plot.xlabel('Vel /ms^-1')
+    plot.hist(nkicks, bins=200, density=True, alpha=0.5, color='blue')
+    plot.title(r"Total num kicks, {0} Initial Particles, {4} remain at t={1}s, {2}K -> {3}K".format(NUMBER, time, INITEMP, THRESHOLD, len(velocities)))
+    plot.xlabel('n')
     plot.ylabel('Density')
     plot.show()
   
@@ -403,7 +404,7 @@ def __main__():
 
     print("CSV file written successfully.")
 
-__main__()
-#HistEscapeTimes("lastrunTimes.csv")
-#HistVelDistStucks("lastrunStucks.csv")
-HistSnapShot("lastrunSnapshot.csv", timeIndex=0)
+#__main__()
+HistEscapeTimes("lastrunTimes.csv")
+HistVelDistStucks("lastrunStucks.csv")
+#HistSnapShot("lastrunSnapshot.csv", timeIndex=0)

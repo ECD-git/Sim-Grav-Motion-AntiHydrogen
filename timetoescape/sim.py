@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plot
 import math
 import csv
+from ast import literal_eval
 
 # physical
 global MASS; MASS = 1.00784*1.66*(10**-27);
@@ -280,7 +281,7 @@ def simulate2(snapshots = False):
             # NB: you can get the escapes before each snapshot time by truncating the 'escapes' array to that time
             if (np.size(indSnapshot[0]) > 0):
                 for i in range(len(indSnapshot[0])):
-                    snapshotdata[indSnapshot[0][i]].append([VELOCITIES[indSnapshot[1][i]], PASSES[indSnapshot[1][i]], KICKS[indSnapshot[1][i]]])
+                    snapshotdata[indSnapshot[0][i]].append([float(VELOCITIES[indSnapshot[1][i]]), float(PASSES[indSnapshot[1][i]]), float(KICKS[indSnapshot[1][i]])])
                 print("{0} PARTICLES PASSED SOME TIME THRESHOLD".format(np.size(indSnapshot[0])))
 
         # check if a minimum number of particles have escaped first
@@ -332,12 +333,20 @@ def ReadFile(filename):
         # [1] = Vel of stuck particles
         # [2] = passes
         # [3] = kicks
+
+        # row num = snapshot time index
+        # column = particle
+        # for each element, [velocity, num passes, num kicks]
+
         for row in raw:
             dat.append(row)
     # csv reads as strings so need to convert back to floats
-    for i in range(len(dat)):
-        dat[i] = list(map(float, dat[i]))
-    return dat
+    try:
+        for i in range(len(dat)):
+            dat[i] = list(map(float, dat[i]))
+        return dat
+    except:
+        return dat
 
 def HistEscapeTimes(filename):
     dat = ReadFile(filename)
@@ -356,8 +365,16 @@ def HistVelDistStucks(filename):
     plot.xlabel('Vel /ms^-1')
     plot.ylabel('Density')
     plot.show()
-    
 
+def HistSnapShot(filename, timeIndex=0):
+    dat = ReadFile(filename)
+    time = SNAPSHOTTIMES[timeIndex]
+    # atp each row is a list of particle dat as a string, need to convert each string of list to an actual list
+    for i in range(len(dat)):
+        for j in range(len(dat)):
+            dat[i][j] = literal_eval(dat[i][j])
+    print(dat[0][0][0])
+    
 def __main__():    
     escapes, stucks, snapshotdata = simulate2(snapshots=True)
 
@@ -378,4 +395,5 @@ def __main__():
 
 #__main__()
 #HistEscapeTimes("lastrunTimes.csv")
-HistVelDistStucks("lastrunStucks.csv")
+#HistVelDistStucks("lastrunStucks.csv")
+HistSnapShot("lastrunSnapshot.csv", timeIndex=0)

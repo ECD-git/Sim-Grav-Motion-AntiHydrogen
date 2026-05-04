@@ -16,7 +16,7 @@ global TIMESTEP; TIMESTEP = 0.05; # make sure to design sim so timestep can be c
 global MAXPASSES; MAXPASSES = 10000;
 global MAXTIME; MAXTIME = 10000; # 10000 sim seconds
 global MINESCAPES; MINESCAPES = 100; # min number of escapes to occur before sim starts timing out particles
-global SNAPSHOTTIMES; SNAPSHOTTIMES = [1000,2000,3000,4000,5000,6000,7000,8000,9000,10000] # take dist at some interesting times
+global SNAPSHOTTIMES; SNAPSHOTTIMES = np.array([1000,2000,3000,4000,5000,6000,7000,8000,9000,10000]) # take dist at some interesting times
 
 # trap
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
@@ -204,7 +204,7 @@ def simulate():
 
     return escapeTimes
 
-def simulate2():
+def simulate2(snapshots = False):
     # Initialise variables of simulation
     VELOCITIES = RandVelocities(NUMBER,INITEMP,INITPE)
     TIMES = np.zeros(NUMBER)
@@ -212,13 +212,17 @@ def simulate2():
     KICKS = np.zeros(NUMBER)
     escapes = np.array([np.array([]), np.array([]), np.array([])])
     stucks = np.array([np.array([]), np.array([]), np.array([]), np.array([])])
+    snapshotdata = [[[0,0,0]] for _ in range(np.size(SNAPSHOTTIMES))]
 
     while(np.size(VELOCITIES)>0):
         # distribute velocity components
         directions, angles = UniRandVectorSpace(np.size(VELOCITIES)) # get current direction of all particles
         transComps = np.sqrt(directions[:,0]**2 + directions[:,1]**2) # get all transverse components
         # Get time until next beam pass
-        TIMES += np.vectorize(RandomMFPTime)(VELOCITIES*transComps)
+        deltaT = np.vectorize(RandomMFPTime)(VELOCITIES*transComps)
+
+        # iterate time
+        TIMES += deltaT
 
         # For particles crossing beam (all of ones remaining lmao)
         # Impact params
@@ -256,7 +260,27 @@ def simulate2():
             PASSES = np.delete(PASSES, escaped)
             KICKS = np.delete(KICKS, escaped)
             TIMES = np.delete(TIMES, escaped)
+            deltaT = np.delete(deltaT, escaped)
             print("{0} PARTICLES ESCAPED, {1} REMAIN".format(np.size(escaped), np.size(VELOCITIES)))
+
+        if(snapshots):
+            # check if time->time+deltatime lies over one of our snapshot times (inclusive)
+            # this is a little computationally heavy but i cant think of a more efficient method
+            # disable if unneeded
+            # broadcast the snapshot times vertically to a matrix of length equal to TIMES
+            checkTimesMatrix = np.tile(np.reshape(SNAPSHOTTIMES, (np.size(SNAPSHOTTIMES,axis=0),1)),(1, np.size(TIMES,axis=0)))
+            # broadcast TIMES, TIMES+deltaT horizontally to the length of snapshottimes,
+            # check if a snapshot time lies between the 2 values, and get their ind
+            indSnapshot = (np.tile(TIMES,(np.size(checkTimesMatrix, axis=0),1))<checkTimesMatrix) * (checkTimesMatrix<=np.tile(TIMES+deltaT,(np.size(checkTimesMatrix, axis=0),1)))
+            indSnapshot = np.where(indSnapshot)
+
+            # get a snapshot of data if at a relevant time
+            # want data of all escaped particles as above and data of all remaining particles
+            # NB: you can get the escapes before each snapshot time by truncating the 'escapes' array to that time
+            if (np.size(indSnapshot[0]) > 0):
+                for i in range(len(indSnapshot[0])):
+                    snapshotdata[indSnapshot[0][i]].append([VELOCITIES[indSnapshot[1][i]], PASSES[indSnapshot[1][i]], KICKS[indSnapshot[1][i]]])
+                print("{0} PARTICLES PASSED SOME TIME THRESHOLD".format(np.size(indSnapshot[0])))
 
         # check if a minimum number of particles have escaped first
         if(np.size(escapes[0]) > MINESCAPES):
@@ -277,19 +301,66 @@ def simulate2():
     print("MAX LOOPS EXCEEDED, {0} REMAINING PARTICLES TIMED OUT".format(np.size(VELOCITIES)))
     stucks = np.hstack((np.array([TIMES,VELOCITIES,PASSES,KICKS]), stucks))
     print("{0} PARTICLES ESCAPED, {1} STILL TRAPPED".format(np.size(escapes[0]),np.size(stucks[0])))
-    return escapes, stucks
-        
+
+    #remove placeholder element from the snapshot data list
+    if (snapshots):
+        for i in range(len(snapshotdata)):
+            snapshotdata[i].pop(0)
+
+        return escapes, stucks, snapshotdata
+    else:
+        return escapes, stucks
+    
 def Histogram(array):
     Fig = plot.figure()
     plot.hist(array, bins=200, density=True, alpha=0.5, color='blue')
     plot.title(r"Escape Times, {0} Particles, $\delta t$ = {1}, {2}K -> {3}K".format(NUMBER, TIMESTEP, INITEMP, THRESHOLD))
     plot.xlabel('Escape Time /s')
     plot.ylabel('Density')
-    plot.legend()
     plot.show()
-    
+
 def __main__():    
-    times, bin = simulate2()
+    times, stucks, snapshotdata = simulate2(snapshots=True)
+    
     Histogram(times[0])
+
+    '''
+    snapshottimes = np.array([2,5,8])
+    # empty array to store n kicks, passes and velocities, for each snapshot time, simply append each new particle to its relevant time slot (row)
+    # REMEMBER TO REMOVE THE FIRST ELEMENT FROM EACH ROW AT END
+    # this is for 2 data points but would be extended to 3 for the actual
+    snapshotdata = [[[0,0]] for _ in range(np.size(snapshottimes))]
+    print(snapshotdata)
+
+    A = np.array([1,1,4,4,1,1,4,7,7])
+    dat1 = np.array([1,1,1,1,1,1,1,1,1])
+    dat2 = np.array([2,2,2,2,2,2,2,2,2])
+
+    deltaT = np.array([2,2,2,2,2,2,2,2,2])
+    Times = np.tile(np.reshape(snapshottimes, (np.size(snapshottimes,axis=0),1)), (1,np.size(A, axis=0)))
+
+    snapshot = (np.tile(A,(np.size(Times, axis=0),1))<Times) * (Times<=np.tile(A+deltaT,(np.size(Times, axis=0),1)))
+    snapshot = np.where(snapshot)
+    print(snapshot)
+
+    # get data after energy changes and escapes etc, but before timeouts
+    A += deltaT
+    
+
+
+    #------
+    # append data points
+    for i in snapshot[0]:
+        # i is the row index in snapshotdata
+        # snapshot[1][i] is the index of the data elementx
+        snapshotdata[i].append([dat1[snapshot[1][i]],dat2[snapshot[1][i]]])
+
+    # at end, remove first element from each row to remove placeholders
+    for i in range(len(snapshotdata)):
+        snapshotdata[i].pop(0)
+
+    for row in snapshotdata:
+        print(row)
+    '''
 
 __main__()

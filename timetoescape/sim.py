@@ -352,7 +352,7 @@ def HistEscapeTimes(filename):
     dat = ReadFile(filename)
     Fig = plot.figure()
     plot.hist(dat[0], bins=200, density=True, alpha=0.5, color='blue')
-    plot.title(r"Escape Times, {0} Particles, $\delta t$ = {1}, {2}K -> {3}K".format(NUMBER, TIMESTEP, INITEMP, THRESHOLD))
+    plot.title(r"Escape Times, {0} Particles {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD))
     plot.xlabel('Escape Time /s')
     plot.ylabel('Density')
     plot.show()
@@ -361,7 +361,7 @@ def HistVelDistStucks(filename):
     dat = ReadFile(filename)
     Fig = plot.figure()
     plot.hist(dat[1], bins=200, density=True, alpha=0.5, color='blue')
-    plot.title(r"Velocities, Stuck Particles, {0} Particles {4} Stuck, $\delta t$ = {1}, {2}K -> {3}K".format(NUMBER, TIMESTEP, INITEMP, THRESHOLD, len(dat[1])))
+    plot.title(r"Velocities, Stuck Particles, {0} Particles {3} Stuck, {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[1])))
     plot.xlabel('Vel /ms^-1')
     plot.ylabel('Density')
     plot.show()
@@ -371,10 +371,17 @@ def HistSnapShot(filename, timeIndex=0):
     time = SNAPSHOTTIMES[timeIndex]
     # atp each row is a list of particle dat as a string, need to convert each string of list to an actual list
     for i in range(len(dat)):
-        for j in range(len(dat)):
+        for j in range(len(dat[i])):
             dat[i][j] = literal_eval(dat[i][j])
-    print(dat[0][0][0])
-    
+    velocities = [x[0] for x in dat[timeIndex]]
+
+    Fig = plot.figure()
+    plot.hist(velocities, bins=200, density=True, alpha=0.5, color='blue')
+    plot.title(r"Velocities, {0} Particles at t={1}s, {2}K -> {3}K".format(NUMBER, time, INITEMP, THRESHOLD, len(dat[1])))
+    plot.xlabel('Vel /ms^-1')
+    plot.ylabel('Density')
+    plot.show()
+  
 def __main__():    
     escapes, stucks, snapshotdata = simulate2(snapshots=True)
 

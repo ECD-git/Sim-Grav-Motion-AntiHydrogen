@@ -209,6 +209,7 @@ def simulate():
 def simulate2(snapshots = False):
     # Initialise variables of simulation
     VELOCITIES = RandVelocities(NUMBER,INITEMP,INITPE)
+    initVel = VELOCITIES
     TIMES = np.zeros(NUMBER)
     PASSES = np.zeros(NUMBER)
     KICKS = np.zeros(NUMBER)
@@ -309,9 +310,9 @@ def simulate2(snapshots = False):
         for i in range(len(snapshotdata)):
             snapshotdata[i].pop(0)
 
-        return escapes, stucks, snapshotdata
+        return initVel, escapes, stucks, snapshotdata
     else:
-        return escapes, stucks
+        return initVel, escapes, stucks
     
 def Histogram(array):
     Fig = plot.figure()
@@ -338,6 +339,7 @@ def ReadFile(filename):
         # column = particle
         # for each element, [velocity, num passes, num kicks]
 
+        # for inital vel, each index is just a velocity
         for row in raw:
             dat.append(row)
     # csv reads as strings so need to convert back to floats
@@ -366,7 +368,7 @@ def HistVelDistStucks(filename):
     plot.ylabel('Density')
     plot.show()
 
-def HistSnapShot(filename, timeIndex=0):
+def HistSnapShotVel(filename, initials, timeIndex=0):
     dat = ReadFile(filename)
     time = SNAPSHOTTIMES[timeIndex]
     # atp each row is a list of particle dat as a string, need to convert each string of list to an actual list
@@ -375,19 +377,23 @@ def HistSnapShot(filename, timeIndex=0):
             dat[i][j] = literal_eval(dat[i][j])
     velocities = [x[0] for x in dat[timeIndex]]
     nkicks = [x[2] for x in dat[timeIndex]]
-
     for i in range(len(dat)):
         print(len(dat[i]))
+    initVels = ReadFile(initials)
 
     Fig = plot.figure()
-    plot.hist(nkicks, bins=200, density=True, alpha=0.5, color='blue')
+    # get mean and std of plots
+
+    plot.hist(initVels, bins=200, density=True, alpha=0.5, color = 'blue')
+    plot.hist(velocities, bins=200, density=True, alpha=0.75, color='blue')
     plot.title(r"Total num kicks, {0} Initial Particles, {4} remain at t={1}s, {2}K -> {3}K".format(NUMBER, time, INITEMP, THRESHOLD, len(velocities)))
-    plot.xlabel('n')
+    plot.xlabel('vel')
     plot.ylabel('Density')
     plot.show()
   
-def __main__():    
-    escapes, stucks, snapshotdata = simulate2(snapshots=True)
+def __main__():
+    # cahnge to save init vel dist 
+    initvel, escapes, stucks, snapshotdata = simulate2(snapshots=True)
 
     # this completely overwrites previous file data, so for consecutive runs the data should be combined into a 'master array' before being written
     with open("lastrunTimes.csv", "w", newline="", encoding="utf-8") as fe:
@@ -402,9 +408,13 @@ def __main__():
         writer = csv.writer(fss)
         writer.writerows(snapshotdata)
 
+    with open("initvelocities.csv", "w", newline="", encoding="utf-8") as fi:
+        writer = csv.writer(fi)
+        writer.writerows(initvel)
+
     print("CSV file written successfully.")
 
 #__main__()
-HistEscapeTimes("lastrunTimes.csv")
-HistVelDistStucks("lastrunStucks.csv")
-#HistSnapShot("lastrunSnapshot.csv", timeIndex=0)
+#HistVelDistStucks("lastrunStucks.csv")
+#HistEscapeTimes("lastrunTimes.csv")
+HistSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv", timeIndex=6)

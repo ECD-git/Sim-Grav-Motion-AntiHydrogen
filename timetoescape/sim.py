@@ -10,25 +10,28 @@ global K_B; K_B = 1.380649*(10**-23);
 global C; C = 3*(10**8);
 global ALPHA_FACTOR; ALPHA_FACTOR=6.67*(10**-31) #[m^3], alpha/4*pi*epsilon_0
 # simulation
-global NUMBER; NUMBER = 1000;
+global NUMBER; NUMBER = 10000;
 global INITTEMP; INITEMP = 0.001; # kelvin
 global INITPE; INITPE = 0;
-global THRESHOLD; THRESHOLD = 0.2; # kelvin
+global THRESHOLD; THRESHOLD = 0.01; # kelvin
 global TIMESTEP; TIMESTEP = 0.05; # make sure to design sim so timestep can be changed at a later date
 global MAXPASSES; MAXPASSES = 10000;
 global MAXTIME; MAXTIME = 10000; # 10000 sim seconds
-global MINESCAPES; MINESCAPES = 100; # min number of escapes to occur before sim starts timing out particles
+global MINESCAPES; MINESCAPES = 1000; # min number of escapes to occur before sim starts timing out particles
 global SNAPSHOTTIMES; SNAPSHOTTIMES = np.array([1000,2000,3000,4000,5000,6000,7000,8000,9000,10000]) # take dist at some interesting times, im not sure how this behaves at >MAXTIME since its uneeded
+
+global ESCAPEVEL; ESCAPEVEL = np.sqrt(2*(THRESHOLD*K_B)/MASS)
+print("ESCAPE VELOCITY: {0} ms^-1".format(ESCAPEVEL))
 
 # trap
 global TRAPSIGMA; TRAPSIGMA = 200*(10**-6) #[m]
 global TRAPD; TRAPD = 5*0.01 #[m]
 global BEAMSWITCHPERIOD; BEAMSWITCHPERIOD = 1*(10**-9) #[s]
 global BEAMLAMBDA; BEAMLAMBDA = 1200*(10**-9) # [m]
-global BEAMPOWER; BEAMPOWER = 1 #[W]
+global BEAMPOWER; BEAMPOWER = 2 #[W]
 
 # we are using the expectation value of the energy change per kick since there will be like 10**6 kicks per beam pass
-global BEAMSTRENGTH; BEAMSTRENGTH = ALPHA_FACTOR * ((2*BEAMPOWER)/(C*(TRAPSIGMA**2)))
+global BEAMSTRENGTH; BEAMSTRENGTH = ALPHA_FACTOR * ((4*BEAMPOWER)/(C*(TRAPSIGMA**2)))
 
 # RANDOM GENERATORS
 def UniRandSpace(N):
@@ -71,7 +74,7 @@ def MaxBoltPDF(vel,temp,PE):
     E = 0.5*MASS*(vel**2) + PE
     return ((2/np.pi)**0.5)*2*((MASS/(K_B*temp))**0.5)*(E/(K_B*temp))*np.exp(-E/(K_B*temp))
 
-def GetDistributedVelocity(prob, temp, PE, it=20, guess=0):
+def GetDistributedVelocity(prob, temp, PE, it=100, guess=0):
     '''
     Uses newton raphson iteration, it times, to get a velocity from a uniformly distributed variable prob, of temperature temp, potential energy PE.
     '''
@@ -93,11 +96,11 @@ def RandVelocities(N, temp, PE):
 
 def DrawInitVels(velocities):
     Fig = plot.figure()
-    plot.hist(velocities, bins=200, density=True, alpha=0.5, color='blue')
-    x = np.linspace(np.min(velocities), np.max(velocities), 100)
+    plot.hist(velocities, bins=100, density=True, alpha=0.5, color='blue')
+    x = np.linspace(0, np.max(velocities), 100)
     y = MaxBoltPDF(x, 0.001, 0)
     plot.plot(x,y,"k--",label = "Maxwell Boltzmann PDF")
-    plot.title("Randomly Distributed Velocities, $T=${0}$k$, U={1}$j$, N={2}".format(INITEMP, INITPE, NUMBER))
+    plot.title("Randomly Distributed Velocities, $T=${0}$k$, U={1}$j$, N={2}".format(INITEMP, INITPE, np.size(velocities)))
     plot.xlabel('velocity')
     plot.ylabel('Density')
     plot.legend()
@@ -237,8 +240,14 @@ def simulate2(snapshots = False):
         NKicks = beamTimes/(BEAMSWITCHPERIOD)
         # get a number of non-cancelled kicks, randomly invert it for negative energy (coin flip)
         nKicks = np.vectorize(GetDistributedn)(np.random.uniform(0,0.5,size=np.size(VELOCITIES)), NKicks)
+        
+        # need to scale the kick size to the velocity of the particle
+        #EnergyScaling = 1-(np.cos((np.pi*VELOCITIES*directions[:,2]*BEAMSWITCHPERIOD)/(BEAMLAMBDA)))**2
+        #EnergyScaling = np.full(len(EnergyScaling), 0.5)
+        #print(( np.mean(EnergyScaling)*BEAMSTRENGTH)/K_B) # prints the average beam pass energy in kelvin
+        
         # get a change in z-dir energy and therefor velocity for each particle
-        deltaUZs = BEAMSTRENGTH * nKicks
+        deltaUZs = BEAMSTRENGTH * nKicks# * EnergyScaling
         deltaVZs = deltaUZs/(MASS*VELOCITIES*directions[:,2])
         # apply increase in velocity
         VELOCITIES = np.sqrt((VELOCITIES*directions[:,0])**2 + (VELOCITIES*directions[:,1])**2 + ((VELOCITIES*directions[:,2]) + deltaVZs)**2)
@@ -283,7 +292,7 @@ def simulate2(snapshots = False):
             if (np.size(indSnapshot[0]) > 0):
                 for i in range(len(indSnapshot[0])):
                     snapshotdata[indSnapshot[0][i]].append([float(VELOCITIES[indSnapshot[1][i]]), float(PASSES[indSnapshot[1][i]]), float(KICKS[indSnapshot[1][i]])])
-                print("{0} PARTICLES PASSED SOME TIME THRESHOLD".format(np.size(indSnapshot[0])))
+                #print("{0} PARTICLES PASSED SOME TIME THRESHOLD".format(np.size(indSnapshot[0])))
 
         # check if a minimum number of particles have escaped first
         if(np.size(escapes[0]) > MINESCAPES):
@@ -295,10 +304,11 @@ def simulate2(snapshots = False):
                 PASSES = np.delete(PASSES, stuck)
                 KICKS = np.delete(KICKS, stuck)
                 TIMES = np.delete(TIMES, stuck)
-                print("{0} PARTICLES TIMEDOUT, {1} REMAIN".format(np.size(stuck), np.size(VELOCITIES)))
+                #print("{0} PARTICLES TIMEDOUT, {1} REMAIN".format(np.size(stuck), np.size(VELOCITIES)))
             # break if we have exceeded the max number of passes for any particle
-            if(np.max(PASSES) >= MAXPASSES):
-                break;
+            if (np.size(PASSES) != 0):
+                if(np.max(PASSES) >= MAXPASSES):
+                    break;
 
     # After loop ends, its assumed all remaining particles will not escape in any capacity we care about
     print("MAX LOOPS EXCEEDED, {0} REMAINING PARTICLES TIMED OUT".format(np.size(VELOCITIES)))
@@ -352,6 +362,9 @@ def ReadFile(filename):
 
 def HistEscapeTimes(filename):
     dat = ReadFile(filename)
+
+    # get mean and std of plots
+
     Fig = plot.figure()
     plot.hist(dat[0], bins=200, density=True, alpha=0.5, color='blue')
     plot.title(r"Escape Times, {0} Particles, {3} Escaped {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[0])))
@@ -361,6 +374,9 @@ def HistEscapeTimes(filename):
 
 def HistVelDistStucks(filename):
     dat = ReadFile(filename)
+
+    # get mean and std of plots
+
     Fig = plot.figure()
     plot.hist(dat[1], bins=200, density=True, alpha=0.5, color='blue')
     plot.title(r"Velocities, Stuck Particles, {0} Particles {3} Stuck, {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[1])))
@@ -377,24 +393,80 @@ def HistSnapShotVel(filename, initials, timeIndex=0):
             dat[i][j] = literal_eval(dat[i][j])
     velocities = [x[0] for x in dat[timeIndex]]
     nkicks = [x[2] for x in dat[timeIndex]]
-    for i in range(len(dat)):
-        print(len(dat[i]))
     initVels = ReadFile(initials)
 
     Fig = plot.figure()
-    # get mean and std of plots
 
-    plot.hist(initVels, bins=200, density=True, alpha=0.5, color = 'blue')
-    plot.hist(velocities, bins=200, density=True, alpha=0.75, color='blue')
+    x = np.linspace(0, np.max(initVels), 100)
+    y = MaxBoltPDF(x, 0.001, 0)
+    #plot.plot(x,y,"r--",label = "Maxwell Boltzmann PDF")
+
+    plot.hist(initVels, bins=100, density=True, alpha=0.15, color = 'red', label="Initial Velocities")
+    plot.hist(velocities, bins=100, density=True, alpha=0.65, color='blue', label = "Current Velocities")
+    plot.plot([ESCAPEVEL, ESCAPEVEL], [0, 0.2], 'k--', label="Threshold Velocity")
+
     plot.title(r"Total num kicks, {0} Initial Particles, {4} remain at t={1}s, {2}K -> {3}K".format(NUMBER, time, INITEMP, THRESHOLD, len(velocities)))
-    plot.xlabel('vel')
+    plot.xlabel('vel /ms^-1')
     plot.ylabel('Density')
+    plot.legend()
+    plot.show()
+    
+def HistSnapShotKicks(filename, timeIndex=0):
+    dat = ReadFile(filename)
+    time = SNAPSHOTTIMES[timeIndex]
+    # atp each row is a list of particle dat as a string, need to convert each string of list to an actual list
+    for i in range(len(dat)):
+        for j in range(len(dat[i])):
+            dat[i][j] = literal_eval(dat[i][j])
+    velocities = [x[0] for x in dat[timeIndex]]
+    nkicks = [x[2] for x in dat[timeIndex]]
+
+    Fig = plot.figure()
+
+    print(np.mean(nkicks))
+    print(np.std(nkicks))
+
+    plot.hist(nkicks, bins=100, density=True, alpha=1, color='blue', label = "Current Velocities")
+
+    plot.title(r"Total num kicks, {0} Initial Particles, {4} remain at t={1}s, {2}K -> {3}K".format(NUMBER, time, INITEMP, THRESHOLD, len(velocities)))
+    plot.xlabel('n kicks')
+    plot.ylabel('Density')
+    plot.legend()
+    plot.show()
+
+def DrawTestVels(num, temp, PE):
+    velocities = RandVelocities(num,temp,PE)
+    x = np.linspace(0, np.max(velocities), 100)
+    y = MaxBoltPDF(x, temp, PE)
+
+    Fig = plot.figure()
+    bins = plot.hist(velocities, bins=100, density=True, alpha=0.5, color='blue', label="Random Variables")
+
+    ModelMean = 2 * np.sqrt(K_B*temp/MASS) * np.sqrt(2/np.pi)
+    mean = np.mean(velocities)
+    std = np.std(velocities)
+
+    # get middle value of all bins
+    binx = np.array([])
+    for i in range(np.size(bins[1])):
+       if(i+1 != np.size(bins[1])):
+        binx = np.append((bins[1][i] + bins[1][i+1])/2, binx)
+
+    RedChiSq = 0
+    for i in range(len(binx)):
+        RedChiSq += (bins[0][i]-MaxBoltPDF(binx[i], temp, PE))**2/MaxBoltPDF(binx[i], temp, PE)
+
+    plot.text(200,0.005,"Model Mean = {0:3.2f},\nMean = {1:3.2f} $\pm$ {2:3.2f}".format(ModelMean, mean, std))
+    plot.plot(x,y,"k--",label = "Maxwell Boltzmann PDF")
+    plot.title("Randomly Distributed Velocities, $T=${0}k, U={1}j, N={2}".format(temp, PE, np.size(velocities)))
+    plot.xlabel('Velocity / ms$^{-1}$')
+    plot.ylabel('Density')
+    plot.legend()
     plot.show()
   
 def __main__():
-    # cahnge to save init vel dist 
     initvel, escapes, stucks, snapshotdata = simulate2(snapshots=True)
-
+    
     # this completely overwrites previous file data, so for consecutive runs the data should be combined into a 'master array' before being written
     with open("lastrunTimes.csv", "w", newline="", encoding="utf-8") as fe:
         writer = csv.writer(fe)
@@ -410,11 +482,15 @@ def __main__():
 
     with open("initvelocities.csv", "w", newline="", encoding="utf-8") as fi:
         writer = csv.writer(fi)
-        writer.writerows(initvel)
+        writer.writerow(initvel)
 
     print("CSV file written successfully.")
+    
 
 #__main__()
 #HistVelDistStucks("lastrunStucks.csv")
 #HistEscapeTimes("lastrunTimes.csv")
-HistSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv", timeIndex=6)
+#HistSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv", timeIndex=2)
+#HistSnapShotKicks("lastrunSnapshot.csv", timeIndex=3)
+
+DrawTestVels(10000,0.5,0)

@@ -16,7 +16,17 @@ def RandUnitVectors(N):
     unitVectors[:,0] = np.sin(angles[:,0])*np.cos(angles[:,1]) #x
     unitVectors[:,1] = np.sin(angles[:,0])*np.sin(angles[:,1]) #y
     unitVectors[:,2] = np.cos(angles[:,0]) #z
-    return unitVectors
+    return unitVectors, angles
+
+def WrongUnitVectors(N):
+    angles = np.random.random((N,2))
+    angles[:,1] = angles[:,1]*2*np.pi # phi
+    angles[:,0] = angles[:,0]*np.pi # theta
+    unitVectors = np.zeros((N,3))
+    unitVectors[:,0] = np.sin(angles[:,0])*np.cos(angles[:,1]) #x
+    unitVectors[:,1] = np.sin(angles[:,0])*np.sin(angles[:,1]) #y
+    unitVectors[:,2] = np.cos(angles[:,0]) #z
+    return unitVectors, angles
 
 def TransverseVelocityTest(N):
     unitVectors = RandUnitVectors(N)
@@ -58,6 +68,41 @@ def AnglesTest(N):
     plot.title("Uniform Rand Spherical Unit Vector Angles, N={0}".format(N))
     plot.show()
 
-#AnglesTest(1000)
-TransverseVelocityTest(100000)
-#SphereVectorTest(1000)
+correctvectors, correctangles = RandUnitVectors(2000)
+wrongvectors, wrongangles = WrongUnitVectors(2000)
+
+fontsize = 20
+fig = plot.figure(figsize=plot.figaspect(0.5))
+
+ax1 = fig.add_subplot(2, 2, 1)
+ax1.scatter(wrongangles[:,1]/np.pi, wrongangles[:,0]/np.pi, marker='.')
+ax1.set_xlabel(r"$\phi$ /$\pi$")
+ax1.set_ylabel(r"$\theta$ /$\pi$")
+ax1.text(0.05, 0.95, "a)", transform=ax1.transAxes, fontsize=fontsize)
+
+ax2 = fig.add_subplot(2, 2, 2, projection='3d')
+ax2.scatter(wrongvectors[:,0], wrongvectors[:,1], wrongvectors[:,2],  marker='.')
+ax2.set_xlabel('x')
+ax2.set_ylabel('y')
+ax2.set_zlabel('z')
+ax2.text2D(0.05, 0.95, "b)", transform=ax2.transAxes, fontsize=fontsize)
+
+ax3 = fig.add_subplot(2, 2, 3)
+ax3.scatter(correctangles[:,1]/np.pi, correctangles[:,0]/np.pi,  marker='.')
+ax3.set_xlabel(r"$\phi$ /$\pi$")
+ax3.set_ylabel(r"$\theta$ /$\pi$")
+ax3.text(0.05, 0.95, "c)", transform=ax3.transAxes, fontsize=fontsize)
+
+ax4 = fig.add_subplot(2, 2, 4, projection='3d')
+ax4.scatter(correctvectors[:,0], correctvectors[:,1], correctvectors[:,2],  marker='.')
+ax4.set_xlabel('x')
+ax4.set_ylabel('y')
+ax4.set_zlabel('z')
+ax4.text2D(0.05, 0.95, "d)", transform=ax4.transAxes, fontsize=fontsize)
+
+plot.tight_layout()
+
+
+
+
+plot.show()

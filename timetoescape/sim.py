@@ -10,15 +10,14 @@ global K_B; K_B = 1.380649*(10**-23);
 global C; C = 3*(10**8);
 global ALPHA_FACTOR; ALPHA_FACTOR=6.67*(10**-31) #[m^3], alpha/4*pi*epsilon_0
 # simulation
-global NUMBER; NUMBER = 10000;
+global NUMBER; NUMBER = 20000;
 global INITTEMP; INITEMP = 0.001; # kelvin
 global INITPE; INITPE = 0;
 global THRESHOLD; THRESHOLD = 0.01; # kelvin
-global TIMESTEP; TIMESTEP = 0.05; # make sure to design sim so timestep can be changed at a later date
 global MAXPASSES; MAXPASSES = 10000;
-global MAXTIME; MAXTIME = 10000; # 10000 sim seconds
-global MINESCAPES; MINESCAPES = 1000; # min number of escapes to occur before sim starts timing out particles
-global SNAPSHOTTIMES; SNAPSHOTTIMES = np.array([1000,2000,3000,4000,5000,6000,7000,8000,9000,10000]) # take dist at some interesting times, im not sure how this behaves at >MAXTIME since its uneeded
+global MAXTIME; MAXTIME = 5000; # 10000 sim seconds
+global MINESCAPES; MINESCAPES = 2000; # min number of escapes to occur before sim starts timing out particles
+global SNAPSHOTTIMES; SNAPSHOTTIMES = np.array([1000,2000,3000,4000,5000]) # take dist at some interesting times, im not sure how this behaves at >MAXTIME since its uneeded
 
 global ESCAPEVEL; ESCAPEVEL = np.sqrt(2*(THRESHOLD*K_B)/MASS)
 print("ESCAPE VELOCITY: {0} ms^-1".format(ESCAPEVEL))
@@ -304,7 +303,7 @@ def simulate2(snapshots = False):
                 PASSES = np.delete(PASSES, stuck)
                 KICKS = np.delete(KICKS, stuck)
                 TIMES = np.delete(TIMES, stuck)
-                #print("{0} PARTICLES TIMEDOUT, {1} REMAIN".format(np.size(stuck), np.size(VELOCITIES)))
+                print("{0} PARTICLES TIMEDOUT, {1} REMAIN".format(np.size(stuck), np.size(VELOCITIES)))
             # break if we have exceeded the max number of passes for any particle
             if (np.size(PASSES) != 0):
                 if(np.max(PASSES) >= MAXPASSES):
@@ -323,14 +322,7 @@ def simulate2(snapshots = False):
         return initVel, escapes, stucks, snapshotdata
     else:
         return initVel, escapes, stucks
-    
-def Histogram(array):
-    Fig = plot.figure()
-    plot.hist(array, bins=200, density=True, alpha=0.5, color='blue')
-    plot.title(r"Escape Times, {0} Particles, $\delta t$ = {1}, {2}K -> {3}K".format(NUMBER, TIMESTEP, INITEMP, THRESHOLD))
-    plot.xlabel('Escape Time /s')
-    plot.ylabel('Density')
-    plot.show()
+
 
 def ReadFile(filename):
     dat = []
@@ -401,13 +393,41 @@ def HistSnapShotVel(filename, initials, timeIndex=0):
     y = MaxBoltPDF(x, 0.001, 0)
     #plot.plot(x,y,"r--",label = "Maxwell Boltzmann PDF")
 
-    plot.hist(initVels, bins=100, density=True, alpha=0.15, color = 'red', label="Initial Velocities")
-    plot.hist(velocities, bins=100, density=True, alpha=0.65, color='blue', label = "Current Velocities")
+    plot.hist(initVels, bins=100, density=False, alpha=0.15, color = 'red', label="Initial Velocities")
+    plot.hist(velocities, bins=100, density=False, alpha=0.65, color='blue', label = "Current Velocities")
     plot.plot([ESCAPEVEL, ESCAPEVEL], [0, 0.2], 'k--', label="Threshold Velocity")
 
     plot.title(r"Total num kicks, {0} Initial Particles, {4} remain at t={1}s, {2}K -> {3}K".format(NUMBER, time, INITEMP, THRESHOLD, len(velocities)))
     plot.xlabel('vel /ms^-1')
-    plot.ylabel('Density')
+    plot.ylabel('Counts')
+    plot.legend()
+    plot.show()
+
+def HistAllSnapShotVel(filename, initials):
+    dat = ReadFile(filename)
+    # atp each row is a list of particle dat as a string, need to convert each string of list to an actual list
+    for i in range(len(dat)):
+        for j in range(len(dat[i])):
+            dat[i][j] = literal_eval(dat[i][j])
+
+    Fig = plot.figure()
+    
+    initVels = ReadFile(initials)
+    plot.hist(initVels, bins=100, density=False, alpha=0.1, color = 'red', label="Initial Velocities")
+    plot.text(np.mean(initVels), 550, "t = {0} s\nMean={1:3.2f} ms-1\nSTD={2:3.2f} ms-1".format(0, np.mean(initVels), np.std(initVels)))
+
+    textYPos = [450,350,260,200,170]
+    textXPos = [5.6, 6.8, 7.6, 9.2, 11]
+    for i in range(np.size(SNAPSHOTTIMES)):
+        velocities = [x[0] for x in dat[i]]
+        plot.hist(velocities, bins=100, density=False, alpha=0.1*(i+1), color='blue', label = "{0}s".format(SNAPSHOTTIMES[i]))
+        plot.text(textXPos[i], textYPos[i], "t = {0} s\nMean={1:3.2f} ms-1\nSTD={2:3.2f} ms-1".format(SNAPSHOTTIMES[i], np.mean(velocities), np.std(velocities)))
+    
+    plot.plot([ESCAPEVEL, ESCAPEVEL], [0, 600], 'k--', label="Threshold Velocity")
+
+    plot.title(r"Normalised Velocity Distributions, {0} Initial Particles, {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD))
+    plot.xlabel('vel /ms^-1')
+    plot.ylabel('Counts')
     plot.legend()
     plot.show()
     
@@ -491,6 +511,7 @@ def __main__():
 #HistVelDistStucks("lastrunStucks.csv")
 #HistEscapeTimes("lastrunTimes.csv")
 #HistSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv", timeIndex=2)
+HistAllSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv")
 #HistSnapShotKicks("lastrunSnapshot.csv", timeIndex=3)
 
-DrawTestVels(10000,0.5,0)
+#DrawTestVels(10000,0.5,0)

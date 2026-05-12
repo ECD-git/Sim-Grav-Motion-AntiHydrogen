@@ -20,7 +20,7 @@ plot.hist(species, bins=200, density=True, alpha=0.5, color='blue')
 mean = np.mean(species)
 std = np.std(species)
 
-plot.text(140,0.003,"Model Mean $\pm$ STD = {0} $\pm$ {1} ,\nMean $\pm$ STD = {2:3.2f} $\pm$ {3:3.2f}".format(0, np.sqrt(N), mean, std))
+plot.text(80,0.0035,"Model Mean $\pm$ STD = {0} $\pm$ {1} ,\nMean $\pm$ STD = {2:3.2f} $\pm$ {3:3.2f}".format(0, np.sqrt(N), mean, std), fontsize=13)
 
 n = np.linspace(np.min(species), np.max(species), 100)
 y = PDF(n,N)

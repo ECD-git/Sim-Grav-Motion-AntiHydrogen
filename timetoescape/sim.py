@@ -377,21 +377,37 @@ def HistEscapeTimes(filename):
         binx = np.append((bins[1][i] + bins[1][i+1])/2, binx)
     biny = np.flip(bins[0])
 
-    coefs = SciPio.curve_fit(EscapeTimesModel, binx, biny, p0=[-5000,0.0002])
-    print(coefs[0])
-    y = EscapeTimesModel(binx, coefs[0][0], coefs[0][1])
-    perr = np.sqrt(np.diag(coefs[1]))
-
-    '''
-    RedChiSq = 0
-    for i in range(len(binx)):
-        RedChiSq += (bins[0][i]- EscapeTimesModel())**2/EscapeTimesModel()
-    '''
+    coefs, cov, info, mesg, ier = SciPio.curve_fit(EscapeTimesModel, binx, biny, p0=[-5000,0.0002], full_output=True)
+    y = EscapeTimesModel(binx, coefs[0], coefs[1])
+    perr = np.sqrt(np.diag(cov))
 
     plot.title(r"Escape Times, {0} Particles, {3} Escaped {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[0])))
-    plot.text(6500,0.00013,"Model $PDF(t) = b\exp[t/a]$\na = {0:3.2e}$\pm${2:3.2e} s \nb={1:3.2e}$\pm${3:3.2e}".format(coefs[0][0], coefs[0][1], perr[0],perr[1]), fontsize=15)
+    plot.text(6500,0.00013,"Model $PDF(t) = b\exp[t/a]$\na = {0:3.2e}$\pm${2:3.2e} s \nb={1:3.2e}$\pm${3:3.2e}".format(coefs[0], coefs[1], perr[0],perr[1]), fontsize=15)
     plot.plot(binx,y,'k--', label="model")
+
     plot.xlabel('Escape Time /s')
+    plot.ylabel('Density')
+    plot.legend()
+    plot.show()
+
+def HistKicksDistStucks(filename):
+    dat = ReadFile(filename)
+    escapes = ReadFile("lastrunTimes.csv")
+
+    # get mean and std of plots
+
+    Fig = plot.figure()
+    plot.xlim((-40000,40000))
+    plot.hist(dat[3], bins=200, alpha=0.5, color='green',density=True, label="{0} Stuck".format(np.size(dat[3])))
+    plot.text(13500,0.000023,"Stuck Mean= {0:3.0f}\nSTD= {1:3.0f}".format(np.mean(dat[3]),np.std(dat[3])),fontsize=14)
+    plot.hist(escapes[2], bins=200, alpha=0.15, color='red',density=True, label="{0} Escapes".format(np.size(escapes[2])))
+    plot.text(6300,0.000045,"Escaped Mean= {0:3.0f}\nSTD= {1:3.0f}".format(np.mean(escapes[2]),np.std(escapes[2])),fontsize=14)
+    plot.title(r"Velocities, Stuck Particles, {0} Particles, {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[1])))
+
+    plot.text(6,25, "Mean={0:3.2f}ms-1\nSTD={1:3.2f}ms-1".format(np.mean(dat[1]),np.std(dat[1])),fontsize=14)
+    
+    #plot.plot([ESCAPEVEL, ESCAPEVEL], [0, 0.000075], 'k--', label="Threshold Velocity")
+    plot.xlabel('n Kicks')
     plot.ylabel('Density')
     plot.legend()
     plot.show()
@@ -399,13 +415,16 @@ def HistEscapeTimes(filename):
 def HistVelDistStucks(filename):
     dat = ReadFile(filename)
 
-    # get mean and std of plots
+    print(np.mean(dat[0]))
 
     Fig = plot.figure()
-    plot.hist(dat[1], bins=200, density=True, alpha=0.5, color='blue')
-    plot.title(r"Velocities, Stuck Particles, {0} Particles {3} Stuck, {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[1])))
-    plot.xlabel('Vel /ms^-1')
-    plot.ylabel('Density')
+    plot.hist(dat[1], bins=200, alpha=0.5, color='green', label="{0} Stuck".format(np.size(dat[3])))
+    plot.text(6,20,"Stuck Mean= {0:3.2f}\nSTD= {1:3.2f}".format(np.mean(dat[1]),np.std(dat[1])),fontsize=14)
+    print(np.mean(dat[1]))
+    plot.plot([ESCAPEVEL, ESCAPEVEL], [0, 50], 'k--', label="Threshold Velocity")
+    plot.xlabel('Velocity /ms$^{-1}$')
+    plot.ylabel('Counts')
+    plot.legend()
     plot.show()
 
 def HistSnapShotVel(filename, initials, timeIndex=0):
@@ -459,7 +478,7 @@ def HistAllSnapShotVel(filename, initials):
     
     plot.plot([ESCAPEVEL, ESCAPEVEL], [0, 600], 'k--', label="Threshold Velocity")
 
-    plot.title(r"Normalised Velocity Distributions, {0} Initial Particles, {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD))
+    plot.title(r"Velocity Distribution at Diff Times, {0} Initial Particles, {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD))
     plot.xlabel('vel /ms^-1')
     plot.ylabel('Counts')
     plot.legend()
@@ -474,19 +493,20 @@ def VelOverTime():
                     [7.383582966421579,2000],
                     [8.21977892793488,3000],
                     [8.870650580819806,4000],
-                    [9.351998770023739,5000]])
+                    [9.351998770023739,5000],
+                    [10.885141731800278, 10000]])
     
-    coefs = SciPio.curve_fit(VelOverTimeModel, data[:,1], data[:,0], p0=[-500,-1,9])
+    coefs, cov, info, mesg, ier = SciPio.curve_fit(VelOverTimeModel, data[:,1], data[:,0], p0=[-500,-1,9], full_output=True)
     x = np.linspace(0,6000,50)
     print(coefs)
-    y = VelOverTimeModel(x, coefs[0][0], coefs[0][1], coefs[0][2],)
+    y = VelOverTimeModel(x, coefs[0], coefs[1], coefs[2],)
 
-    perr = np.sqrt(np.diag(coefs[1]))
+    perr = np.sqrt(np.diag(cov))
 
     figure = plot.figure()
     plot.scatter(data[:,1], data[:,0], marker='x', label="data",zorder=1)
     plot.plot(x,y,'k--',zorder=2,label="model")
-    plot.text(2000,5,"Model $v = b\exp[t/a]$ + d\na = {0:3.2f} $\pm$ {3:3.2f}s\nb={1:3.2f} $\pm$ {4:3.2f} ms-1\nd={2:3.2f}$\pm${5:3.2f} ms-1".format(coefs[0][0], coefs[0][1], coefs[0][2], perr[0],perr[1],perr[2]), fontsize=15)
+    plot.text(2000,5,"Model $v = b\exp[t/a]$ + d\na = {0:3.2f} $\pm$ {3:3.2f}s\nb={1:3.2f} $\pm$ {4:3.2f} ms-1\nd={2:3.2f}$\pm${5:3.2f} ms-1".format(coefs[0], coefs[1], coefs[2], perr[0],perr[1],perr[2]), fontsize=15)
     plot.xlabel(r"time \s", fontsize=13)
     plot.ylabel(r"mean velocity \ms$^{-1}$", fontsize=13)
     plot.title("Mean Velocity Over Time")
@@ -570,8 +590,8 @@ def __main__():
     
 
 #__main__()
-#HistVelDistStucks("lastrunStucks.csv")
-HistEscapeTimes("lastrunTimes.csv")
+HistKicksDistStucks("lastrunStucks.csv")
+#HistEscapeTimes("lastrunTimes.csv")
 #HistSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv", timeIndex=2)
 #HistAllSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv")
 #VelOverTime()

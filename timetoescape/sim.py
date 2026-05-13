@@ -3,6 +3,7 @@ import matplotlib.pyplot as plot
 import math
 import csv
 from ast import literal_eval
+import scipy.optimize as SciPio
 
 # physical
 global MASS; MASS = 1.00784*1.66*(10**-27);
@@ -15,7 +16,7 @@ global INITTEMP; INITEMP = 0.001; # kelvin
 global INITPE; INITPE = 0;
 global THRESHOLD; THRESHOLD = 0.01; # kelvin
 global MAXPASSES; MAXPASSES = 10000;
-global MAXTIME; MAXTIME = 5000; # 10000 sim seconds
+global MAXTIME; MAXTIME = 10000; # 10000 sim seconds
 global MINESCAPES; MINESCAPES = 2000; # min number of escapes to occur before sim starts timing out particles
 global SNAPSHOTTIMES; SNAPSHOTTIMES = np.array([1000,2000,3000,4000,5000]) # take dist at some interesting times, im not sure how this behaves at >MAXTIME since its uneeded
 
@@ -31,6 +32,13 @@ global BEAMPOWER; BEAMPOWER = 2 #[W]
 
 # we are using the expectation value of the energy change per kick since there will be like 10**6 kicks per beam pass
 global BEAMSTRENGTH; BEAMSTRENGTH = ALPHA_FACTOR * ((4*BEAMPOWER)/(C*(TRAPSIGMA**2)))
+
+defaultfontsize = 13
+plot.rc('axes', titlesize=defaultfontsize) #fontsize of the title
+plot.rc('axes', labelsize=defaultfontsize) #fontsize of the x and y labels
+plot.rc('xtick', labelsize=defaultfontsize) #fontsize of the x tick labels
+plot.rc('ytick', labelsize=defaultfontsize) #fontsize of the y tick labels
+plot.rc('legend', fontsize=defaultfontsize) #fontsize of the legend
 
 # RANDOM GENERATORS
 def UniRandSpace(N):
@@ -415,11 +423,13 @@ def HistAllSnapShotVel(filename, initials):
     initVels = ReadFile(initials)
     plot.hist(initVels, bins=100, density=False, alpha=0.1, color = 'red', label="Initial Velocities")
     plot.text(np.mean(initVels), 550, "t = {0} s\nMean={1:3.2f} ms-1\nSTD={2:3.2f} ms-1".format(0, np.mean(initVels), np.std(initVels)))
+    print(str(np.mean(initVels)) + ',' + '0')
 
     textYPos = [450,350,260,200,170]
     textXPos = [5.6, 6.8, 7.6, 9.2, 11]
     for i in range(np.size(SNAPSHOTTIMES)):
         velocities = [x[0] for x in dat[i]]
+        print(str(np.mean(velocities)) + ',' + str(SNAPSHOTTIMES[i]))
         plot.hist(velocities, bins=100, density=False, alpha=0.1*(i+1), color='blue', label = "{0}s".format(SNAPSHOTTIMES[i]))
         plot.text(textXPos[i], textYPos[i], "t = {0} s\nMean={1:3.2f} ms-1\nSTD={2:3.2f} ms-1".format(SNAPSHOTTIMES[i], np.mean(velocities), np.std(velocities)))
     
@@ -428,6 +438,34 @@ def HistAllSnapShotVel(filename, initials):
     plot.title(r"Normalised Velocity Distributions, {0} Initial Particles, {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD))
     plot.xlabel('vel /ms^-1')
     plot.ylabel('Counts')
+    plot.legend()
+    plot.show()
+
+def VelOverTimeModel(x,a,b,c,d):
+    return (b*np.exp((x/a)+c)) + d
+
+def VelOverTime():
+    data = np.array([[4.579341917506838,0],
+                    [6.294667660745464,1000],
+                    [7.383582966421579,2000],
+                    [8.21977892793488,3000],
+                    [8.870650580819806,4000],
+                    [9.351998770023739,5000]])
+    
+    coefs = SciPio.curve_fit(VelOverTimeModel, data[:,1], data[:,0], p0=[-500,-1,1,9])
+    x = np.linspace(0,6000,50)
+    print(coefs)
+    y = VelOverTimeModel(x, coefs[0][0], coefs[0][1], coefs[0][2], coefs[0][3])
+
+    perr = np.sqrt(np.diag(coefs[1]))
+
+    figure = plot.figure()
+    plot.scatter(data[:,1], data[:,0], marker='x', label="data",zorder=1)
+    plot.plot(x,y,'k--',zorder=2,label="model")
+    plot.text(2000,5,"Model $v = b\exp[t/a + c]$ + d\na = {0:3.2f} s\nb={1:3.2f} ms-1\nc={2:3.2f}\nd={3:3.2f} ms-1".format(coefs[0][0], coefs[0][1], coefs[0][2], coefs[0][3]), fontsize=15)
+    plot.xlabel(r"time \s", fontsize=13)
+    plot.ylabel(r"mean velocity \ms$^{-1}$", fontsize=13)
+    plot.title("Mean Velocity Over Time")
     plot.legend()
     plot.show()
     
@@ -476,7 +514,7 @@ def DrawTestVels(num, temp, PE):
     for i in range(len(binx)):
         RedChiSq += (bins[0][i]-MaxBoltPDF(binx[i], temp, PE))**2/MaxBoltPDF(binx[i], temp, PE)
 
-    plot.text(200,0.005,"Model Mean = {0:3.2f},\nMean = {1:3.2f} $\pm$ {2:3.2f}".format(ModelMean, mean, std))
+    plot.text(200,0.005,r"Model Mean = {0:3.2f},\nMean = {1:3.2f} $\pm$ {2:3.2f}".format(ModelMean, mean, std))
     plot.plot(x,y,"k--",label = "Maxwell Boltzmann PDF")
     plot.title("Randomly Distributed Velocities, $T=${0}k, U={1}j, N={2}".format(temp, PE, np.size(velocities)))
     plot.xlabel('Velocity / ms$^{-1}$')
@@ -511,7 +549,8 @@ def __main__():
 #HistVelDistStucks("lastrunStucks.csv")
 #HistEscapeTimes("lastrunTimes.csv")
 #HistSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv", timeIndex=2)
-HistAllSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv")
+#HistAllSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv")
+VelOverTime()
 #HistSnapShotKicks("lastrunSnapshot.csv", timeIndex=3)
 
 #DrawTestVels(10000,0.5,0)

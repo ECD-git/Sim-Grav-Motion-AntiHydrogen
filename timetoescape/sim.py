@@ -382,7 +382,7 @@ def HistEscapeTimes(filename):
     perr = np.sqrt(np.diag(cov))
 
     plot.title(r"Escape Times, {0} Particles, {3} Escaped {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[0])))
-    plot.text(6500,0.00013,"Model $PDF(t) = b\exp[t/a]$\na = {0:3.2e}$\pm${2:3.2e} s \nb={1:3.2e}$\pm${3:3.2e}".format(coefs[0], coefs[1], perr[0],perr[1]), fontsize=15)
+    plot.text(6500,0.00013,"Model $PDF(t) = b\exp[t/a]$\na = {0:3.2e}$\pm${2:3.2e} s \nb={1:3.2e}$\pm${3:3.2e} s-1".format(coefs[0], coefs[1], perr[0],perr[1]), fontsize=15)
     plot.plot(binx,y,'k--', label="model")
 
     plot.xlabel('Escape Time /s')
@@ -590,8 +590,8 @@ def __main__():
     
 
 #__main__()
-HistKicksDistStucks("lastrunStucks.csv")
-#HistEscapeTimes("lastrunTimes.csv")
+#HistKicksDistStucks("lastrunStucks.csv")
+HistEscapeTimes("lastrunTimes.csv")
 #HistSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv", timeIndex=2)
 #HistAllSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv")
 #VelOverTime()

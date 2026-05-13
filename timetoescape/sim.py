@@ -359,6 +359,9 @@ def ReadFile(filename):
         return dat
     except:
         return dat
+    
+def EscapeTimesModel(x,a,b):
+    return b*np.exp(x/a)
 
 def HistEscapeTimes(filename):
     dat = ReadFile(filename)
@@ -366,10 +369,31 @@ def HistEscapeTimes(filename):
     # get mean and std of plots
 
     Fig = plot.figure()
-    plot.hist(dat[0], bins=200, density=True, alpha=0.5, color='blue')
+    bins = plot.hist(dat[0], bins=200, density=True, alpha=0.5, color='blue', label="data")
+
+    binx = np.array([])
+    for i in range(np.size(bins[1])):
+       if(i+1 != np.size(bins[1])):
+        binx = np.append((bins[1][i] + bins[1][i+1])/2, binx)
+    biny = np.flip(bins[0])
+
+    coefs = SciPio.curve_fit(EscapeTimesModel, binx, biny, p0=[-5000,0.0002])
+    print(coefs[0])
+    y = EscapeTimesModel(binx, coefs[0][0], coefs[0][1])
+    perr = np.sqrt(np.diag(coefs[1]))
+
+    '''
+    RedChiSq = 0
+    for i in range(len(binx)):
+        RedChiSq += (bins[0][i]- EscapeTimesModel())**2/EscapeTimesModel()
+    '''
+
     plot.title(r"Escape Times, {0} Particles, {3} Escaped {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[0])))
+    plot.text(6500,0.00013,"Model $PDF(t) = b\exp[t/a + c]$\na = {0:3.2e}$\pm${2:3.2e} s \nb={1:3.2e}$\pm${3:3.2e}".format(coefs[0][0], coefs[0][1], perr[0],perr[1]), fontsize=15)
+    plot.plot(binx,y,'k--', label="model")
     plot.xlabel('Escape Time /s')
     plot.ylabel('Density')
+    plot.legend()
     plot.show()
 
 def HistVelDistStucks(filename):
@@ -441,8 +465,8 @@ def HistAllSnapShotVel(filename, initials):
     plot.legend()
     plot.show()
 
-def VelOverTimeModel(x,a,b,c,d):
-    return (b*np.exp((x/a)+c)) + d
+def VelOverTimeModel(x,a,b,d):
+    return (b*np.exp((x/a))) + d
 
 def VelOverTime():
     data = np.array([[4.579341917506838,0],
@@ -452,17 +476,17 @@ def VelOverTime():
                     [8.870650580819806,4000],
                     [9.351998770023739,5000]])
     
-    coefs = SciPio.curve_fit(VelOverTimeModel, data[:,1], data[:,0], p0=[-500,-1,1,9])
+    coefs = SciPio.curve_fit(VelOverTimeModel, data[:,1], data[:,0], p0=[-500,-1,9])
     x = np.linspace(0,6000,50)
     print(coefs)
-    y = VelOverTimeModel(x, coefs[0][0], coefs[0][1], coefs[0][2], coefs[0][3])
+    y = VelOverTimeModel(x, coefs[0][0], coefs[0][1], coefs[0][2],)
 
     perr = np.sqrt(np.diag(coefs[1]))
 
     figure = plot.figure()
     plot.scatter(data[:,1], data[:,0], marker='x', label="data",zorder=1)
     plot.plot(x,y,'k--',zorder=2,label="model")
-    plot.text(2000,5,"Model $v = b\exp[t/a + c]$ + d\na = {0:3.2f} s\nb={1:3.2f} ms-1\nc={2:3.2f}\nd={3:3.2f} ms-1".format(coefs[0][0], coefs[0][1], coefs[0][2], coefs[0][3]), fontsize=15)
+    plot.text(2000,5,"Model $v = b\exp[t/a]$ + d\na = {0:3.2f} $\pm$ {3:3.2f}s\nb={1:3.2f} $\pm$ {4:3.2f} ms-1\nd={2:3.2f}$\pm${5:3.2f} ms-1".format(coefs[0][0], coefs[0][1], coefs[0][2], perr[0],perr[1],perr[2]), fontsize=15)
     plot.xlabel(r"time \s", fontsize=13)
     plot.ylabel(r"mean velocity \ms$^{-1}$", fontsize=13)
     plot.title("Mean Velocity Over Time")
@@ -547,10 +571,10 @@ def __main__():
 
 #__main__()
 #HistVelDistStucks("lastrunStucks.csv")
-#HistEscapeTimes("lastrunTimes.csv")
+HistEscapeTimes("lastrunTimes.csv")
 #HistSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv", timeIndex=2)
 #HistAllSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv")
-VelOverTime()
+#VelOverTime()
 #HistSnapShotKicks("lastrunSnapshot.csv", timeIndex=3)
 
 #DrawTestVels(10000,0.5,0)

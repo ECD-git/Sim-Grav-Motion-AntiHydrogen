@@ -402,7 +402,7 @@ def HistKicksDistStucks(filename):
     plot.text(13500,0.000023,"Stuck Mean= {0:3.0f}\nSTD= {1:3.0f}".format(np.mean(dat[3]),np.std(dat[3])),fontsize=14)
     plot.hist(escapes[2], bins=200, alpha=0.15, color='red',density=True, label="{0} Escapes".format(np.size(escapes[2])))
     plot.text(6300,0.000045,"Escaped Mean= {0:3.0f}\nSTD= {1:3.0f}".format(np.mean(escapes[2]),np.std(escapes[2])),fontsize=14)
-    plot.title(r"Velocities, Stuck Particles, {0} Particles, {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[1])))
+    plot.title(r"Accumulated kicks, Stuck vs Escaped Particles, {0} Particles, {1}K -> {2}K".format(NUMBER, INITEMP, THRESHOLD, len(dat[1])))
 
     plot.text(6,25, "Mean={0:3.2f}ms-1\nSTD={1:3.2f}ms-1".format(np.mean(dat[1]),np.std(dat[1])),fontsize=14)
     

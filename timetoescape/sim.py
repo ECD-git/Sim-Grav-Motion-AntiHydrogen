@@ -72,7 +72,7 @@ def MaxBoltCDF(vel, temp, PE):
     Maxwell boltzmann CDF for a velocity vel, temperature temp, potential energy PE.
     '''
     E = (0.5*MASS*(vel**2)) + PE
-    return math.erf((E/(K_B*temp))**0.5) - (2/(np.pi**0.5)) * ((E/(K_B*temp))**0.5) * np.exp(-E/(K_B*temp))
+    return np.vectorize(math.erf)((E/(K_B*temp))**0.5) - (2/(np.pi**0.5)) * ((E/(K_B*temp))**0.5) * np.exp(-E/(K_B*temp))
 
 def MaxBoltPDF(vel,temp,PE):
     '''
@@ -537,33 +537,28 @@ def HistSnapShotKicks(filename, timeIndex=0):
     plot.show()
 
 def DrawTestVels(num, temp, PE):
-    velocities = RandVelocities(num,temp,PE)
-    x = np.linspace(0, np.max(velocities), 100)
-    y = MaxBoltPDF(x, temp, PE)
+    #velocities = RandVelocities(num,temp,PE)
+    x = np.linspace(0, 300, 100)
+    y = MaxBoltCDF(x, temp, PE)
 
-    Fig = plot.figure()
-    bins = plot.hist(velocities, bins=100, density=True, alpha=0.5, color='blue', label="Random Variables")
+    fig, (ax0, ax1) = plot.subplots(1, 2, width_ratios=[1, 5])
 
-    ModelMean = 2 * np.sqrt(K_B*temp/MASS) * np.sqrt(2/np.pi)
-    mean = np.mean(velocities)
-    std = np.std(velocities)
+    ax1.plot(x,y,"k--")
+    ax1.set_xlabel('Velocity / ms$^{-1}$')
+    ax1.set_ylim(0,1.05)
+    ax1.set_yticks([])
 
-    # get middle value of all bins
-    binx = np.array([])
-    for i in range(np.size(bins[1])):
-       if(i+1 != np.size(bins[1])):
-        binx = np.append((bins[1][i] + bins[1][i+1])/2, binx)
+    randoms = np.random.rand(10)
+    zeros = np.zeros(10)
+    ax0.scatter(zeros, randoms)
+    ax0.set_title("Random Variables [0,1)")
+    ax0.set_ylim(0,1.05)
+    ax0.set_xticks([])
+    ax0.set_ylabel('Cumulative probability')
 
-    RedChiSq = 0
-    for i in range(len(binx)):
-        RedChiSq += (bins[0][i]-MaxBoltPDF(binx[i], temp, PE))**2/MaxBoltPDF(binx[i], temp, PE)
+    fig.tight_layout()
 
-    plot.text(200,0.005,r"Model Mean = {0:3.2f},\nMean = {1:3.2f} $\pm$ {2:3.2f}".format(ModelMean, mean, std))
-    plot.plot(x,y,"k--",label = "Maxwell Boltzmann PDF")
-    plot.title("Randomly Distributed Velocities, $T=${0}k, U={1}j, N={2}".format(temp, PE, np.size(velocities)))
-    plot.xlabel('Velocity / ms$^{-1}$')
-    plot.ylabel('Density')
-    plot.legend()
+    plot.title("Maxwell Boltzmann CDF")
     plot.show()
   
 def __main__():
@@ -591,10 +586,10 @@ def __main__():
 
 #__main__()
 #HistKicksDistStucks("lastrunStucks.csv")
-HistEscapeTimes("lastrunTimes.csv")
+#HistEscapeTimes("lastrunTimes.csv")
 #HistSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv", timeIndex=2)
 #HistAllSnapShotVel("lastrunSnapshot.csv", "initvelocities.csv")
 #VelOverTime()
 #HistSnapShotKicks("lastrunSnapshot.csv", timeIndex=3)
 
-#DrawTestVels(10000,0.5,0)
+DrawTestVels(10000,0.5,0)

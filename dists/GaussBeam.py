@@ -19,9 +19,9 @@ plot.plot(x,-y, color="blue")
 plot.grid()
 
 
-
-plot.xlabel("Beam Width [m]")
-plot.ylabel("Axial position [m]")
+plot.title("Guassian Beam Axial Profile")
+plot.ylabel("Beam diameter [m]")
+plot.xlabel("Axial position [m]")
 
 plot.show()
 

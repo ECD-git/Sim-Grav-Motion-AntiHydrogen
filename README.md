@@ -1,5 +1,5 @@
 # Sim-Grav-Motion-AntiHydrogen
-All code written for the Semester 8 MPhys project "Simulating the Gravitational Motion of Antimatter Hydrogen Atoms", the report for which can be found in this repo.
+All code written for the Semester 8 MPhys project "Simulating the Gravitational Motion of Antimatter Hydrogen Atoms", the report for which can be found in this repo as "11019850-Grav-Motion-AntiH.pdf".
 
 # Features
 - Randomly distributes velocities subject to a distribution (eg, Maxwell Boltzmann dsitribution or a uniform sphere).
